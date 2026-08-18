@@ -23,7 +23,6 @@ TRANSLATIONS = {
         "fps_label_fmt": "Частота опроса: {fps:.0f} кадр/сек",
         "debounce_label_fmt": "Задержка баннера: {debounce:.1f} сек",
         "btn_reset": "🔄 Сбросить калибровку",
-        "lang_label": "Язык интерфейса:",
         
         "msg_cam_err_title": "Ошибка камеры",
         "msg_cam_err_access": "Не удалось получить доступ к веб-камере.\nПроверьте подключение камеры.",
@@ -61,7 +60,6 @@ TRANSLATIONS = {
         "fps_label_fmt": "Polling Rate: {fps:.0f} FPS",
         "debounce_label_fmt": "Banner Delay: {debounce:.1f} sec",
         "btn_reset": "🔄 Reset Calibration",
-        "lang_label": "Interface Language:",
         
         "msg_cam_err_title": "Camera Error",
         "msg_cam_err_access": "Could not access the webcam.\nPlease check your camera connection.",

@@ -182,11 +182,11 @@ class FrownGuardApp:
         video_bottom_bar = tk.Frame(self.video_frame, bg=self.colors["card"])
         video_bottom_bar.pack(fill=tk.X, side=tk.BOTTOM, padx=10, pady=(5, 10))
         
-        # Метка выбора языка
+        # Метка выбора языка (универсальная иконка глобуса)
         self.lang_label = tk.Label(
             video_bottom_bar, 
-            text="Язык / Language:", 
-            font=("Helvetica", 9, "bold"), 
+            text="🌐", 
+            font=("Segoe UI Emoji", 11), 
             bg=self.colors["card"], 
             fg=self.colors["text_muted"]
         )
@@ -484,7 +484,6 @@ class FrownGuardApp:
         
         # Левая колонка
         self.video_title.configure(text=t["video_title"])
-        self.lang_label.configure(text=t["lang_label"])
         
         # Правая колонка (Заголовки секций)
         self.status_title_label.configure(text=t["status_header"])
