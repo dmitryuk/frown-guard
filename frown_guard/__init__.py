@@ -1,1 +1,1 @@
-# Инициализация пакета frown_guard
+# Package initialization for frown_guard

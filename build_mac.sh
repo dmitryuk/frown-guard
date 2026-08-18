@@ -1,49 +1,49 @@
 #!/bin/bash
 
-# Скрипт автоматической сборки проекта Frown Guard в формат macOS App Bundle (.app) и Disk Image (.dmg).
-# Скрипт должен запускаться непосредственно на операционной системе macOS.
+# Script for automated packaging of the Frown Guard project into macOS App Bundle (.app) and Disk Image (.dmg) formats.
+# The script must be executed directly on macOS.
 
-# Останавливать выполнение при любой ошибке
+# Stop execution on any error
 set -e
 
-# Удаляем старые скомпилированные артефакты, чтобы избежать конфликтов при перезаписи
+# Remove old compiled artifacts to avoid file replacement conflicts
 rm -f Frown_Guard.dmg
 
-echo "=== [1/5] Подготовка окружения и зависимостей ==="
+echo "=== [1/5] Preparing environment and dependencies ==="
 
-# Проверяем, что запуск происходит на macOS
+# Verify that the script is running on macOS
 if [ "$(uname)" != "Darwin" ]; then
-    echo "Ошибка: Данный скрипт предназначен для запуска исключительно на операционной системе macOS!"
-    echo "Для сборки под Linux используйте ./build_appimage.sh"
+    echo "Error: This script is designed to run exclusively on macOS!"
+    echo "To build for Linux, use ./build_appimage.sh"
     exit 1
 fi
 
-# Проверка наличия Python 3
+# Verify Python 3 installation
 if ! command -v python3 &> /dev/null; then
-    echo "Ошибка: Python 3 не установлен в системе. Пожалуйста, установите его (например, через Homebrew: brew install python)."
+    echo "Error: Python 3 is not installed on this system. Please install it (e.g., via Homebrew: brew install python)."
     exit 1
 fi
 
-# Создаем виртуальное окружение, если его нет
+# Create a virtual environment if it does not exist
 if [ ! -d "venv" ]; then
-    echo "Создание виртуального окружения venv..."
+    echo "Creating virtual environment venv..."
     python3 -m venv venv
 fi
 
-# Активируем окружение и устанавливаем основные зависимости
-echo "Обновление pip и установка зависимостей..."
+# Activate environment and install main dependencies
+echo "Upgrading pip and installing dependencies..."
 venv/bin/pip install --upgrade pip
 venv/bin/pip install -r requirements.txt
 venv/bin/pip install pyinstaller
 
-# Проверяем наличие модели MediaPipe
+# Verify the MediaPipe model file
 if [ ! -f "face_landmarker.task" ]; then
-    echo "Скачивание модели face_landmarker.task..."
+    echo "Downloading face_landmarker.task model..."
     venv/bin/python3 -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task', 'face_landmarker.task')"
 fi
 
-echo "=== [2/5] Генерация иконки приложения ==="
-# Генерируем красивую иконку приложения средствами Pillow
+echo "=== [2/5] Generating application icon ==="
+# Generate a beautiful application icon using Pillow
 venv/bin/python3 -c "
 from PIL import Image, ImageDraw
 import os
@@ -51,7 +51,7 @@ import os
 img = Image.new('RGBA', (256, 256), color=(198, 40, 40, 255))
 draw = ImageDraw.Draw(img)
 
-# Рисуем недовольный смайлик
+# Draw a frowning face
 draw.ellipse([40, 40, 216, 216], fill=(255, 235, 59, 255), outline=(0, 0, 0, 255), width=4)
 draw.ellipse([80, 90, 100, 110], fill=(0, 0, 0, 255))
 draw.ellipse([156, 90, 176, 110], fill=(0, 0, 0, 255))
@@ -60,13 +60,13 @@ draw.line([70, 75, 110, 85], fill=(0, 0, 0, 255), width=5)
 draw.line([186, 75, 146, 85], fill=(0, 0, 0, 255), width=5)
 
 img.save('frown-guard.png')
-print('Иконка frown-guard.png успешно сгенерирована!')
+print('Icon frown-guard.png successfully generated!')
 "
 
-echo "=== [3/5] Компиляция macOS App Bundle (.app) ==="
-# Запускаем PyInstaller с флагом --windowed (или -w) для создания оконного .app
-# Флаг --info-plist внедряет mac_info.plist с разрешением NSCameraUsageDescription
-echo "Запуск компилятора PyInstaller..."
+echo "=== [3/5] Compiling macOS App Bundle (.app) ==="
+# Run PyInstaller with the --windowed (or -w) flag to create a windowed .app bundle
+# The --info-plist flag embeds mac_info.plist with the NSCameraUsageDescription permission
+echo "Running PyInstaller..."
 venv/bin/pyinstaller --noconfirm --clean --windowed \
     --name "Frown Guard" \
     --add-data "face_landmarker.task:." \
@@ -76,24 +76,24 @@ venv/bin/pyinstaller --noconfirm --clean --windowed \
     --icon "frown-guard.png" \
     main.py
 
-echo "=== [4/5] Проверка структуры собранного пакета ==="
+echo "=== [4/5] Verifying built package structure ==="
 APP_PATH="dist/Frown Guard.app"
 if [ -d "$APP_PATH" ]; then
-    echo "Успешно скомпилирован пакет: $APP_PATH"
+    echo "Successfully compiled package: $APP_PATH"
 else
-    echo "Ошибка: Не удалось найти собранное приложение в dist/"
+    echo "Error: Failed to find the built application in dist/"
     exit 1
 fi
 
-echo "=== [5/5] Создание установщика Apple Disk Image (.dmg) ==="
-# Собираем стандартный .dmg файл с помощью встроенной утилиты hdiutil
-echo "Генерация Frown_Guard.dmg..."
+echo "=== [5/5] Creating Apple Disk Image installer (.dmg) ==="
+# Create a standard .dmg file using the built-in hdiutil utility
+echo "Generating Frown_Guard.dmg..."
 rm -f Frown_Guard.dmg
 hdiutil create -volname "Frown Guard Installer" -srcfolder "dist/Frown Guard.app" -ov -format UDZO "Frown_Guard.dmg"
 
 echo ""
 echo "======================================================="
-echo " Сборка под macOS успешно завершена!"
-echo " Исполняемый пакет: dist/Frown Guard.app"
-echo " Файл установщика: Frown_Guard.dmg"
+echo " Packaging for macOS completed successfully!"
+echo " Executable bundle: dist/Frown Guard.app"
+echo " Installer file: Frown_Guard.dmg"
 echo "======================================================="

@@ -93,7 +93,7 @@ build_win.bat
 frown-guard/
 ├── main.py                  # Application entry point
 ├── requirements.txt         # Python dependencies
-├── GEMINI.md                # Technical developer documentation (En)
+├── AGENTS.md                # Technical developer documentation (En)
 ├── README.md                # Comprehensive user manual (En)
 ├── build_appimage.sh        # Linux AppImage packaging script
 ├── build_mac.sh             # macOS DMG/App packaging script

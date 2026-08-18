@@ -3,43 +3,43 @@ from typing import Optional
 
 class FrownWarningOverlay(tk.Toplevel):
     """
-    Плавающее безрамочное окно-уведомление, которое отображается поверх всех окон,
-    когда пользователь хмурится, и скрывается, когда лицо расслаблено.
+    Floating frameless notification window displayed on top of all windows
+    when the user is frowning, and hidden when the face is relaxed.
     """
     def __init__(self, parent: Optional[tk.Tk] = None) -> None:
         super().__init__(parent)
         
-        # Настройка безрамочного окна
+        # Configure frameless window
         self.overrideredirect(True)
-        # Окно всегда поверх остальных
+        # Always on top
         self.attributes("-topmost", True)
-        # Прозрачность окна (85% непрозрачности для современного вида)
+        # Window opacity (90% opacity for a modern look)
         self.attributes("-alpha", 0.9)
         
-        # Цветовая палитра (яркий красный предупреждающий тон)
+        # Color palette (bright red warning tone)
         self.bg_color = "#C62828"  # Material Red 800
-        self.fg_color = "#FFFFFF"  # Белый текст
-        self.accent_color = "#FFEB3B"  # Желтый акцент для смайлика
+        self.fg_color = "#FFFFFF"  # White text
+        self.accent_color = "#FFEB3B"  # Yellow accent for smiley face
         
         self.configure(bg=self.bg_color, highlightbackground="#B71C1C", highlightthickness=2)
         
-        # Размеры окна и начальное позиционирование (сверху по центру экрана)
+        # Window dimensions and initial positioning (top center of the screen)
         self.width = 400
         self.height = 65
         
-        # Определение размеров экрана
+        # Determine screen dimensions
         screen_width = self.winfo_screenwidth()
-        # Позиционируем по центру по горизонтали, и немного отступив сверху (10% от верха экрана)
+        # Position centered horizontally and slightly offset from the top
         start_x = (screen_width - self.width) // 2
         start_y = 50
         
         self.geometry(f"{self.width}x{self.height}+{start_x}+{start_y}")
         
-        # Контент уведомления
+        # Notification content
         self.container = tk.Frame(self, bg=self.bg_color)
         self.container.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
-        # Большая предупреждающая иконка/текст
+        # Large warning icon/text
         self.icon_label = tk.Label(
             self.container, 
             text="😡", 
@@ -49,13 +49,13 @@ class FrownWarningOverlay(tk.Toplevel):
         )
         self.icon_label.pack(side=tk.LEFT, padx=(5, 10))
         
-        # Основной текст
+        # Main text
         self.text_frame = tk.Frame(self.container, bg=self.bg_color)
         self.text_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         self.title_label = tk.Label(
             self.text_frame, 
-            text="Не хмурьтесь!", 
+            text="Don't frown!", 
             font=("Helvetica", 14, "bold"), 
             bg=self.bg_color, 
             fg=self.fg_color,
@@ -65,62 +65,62 @@ class FrownWarningOverlay(tk.Toplevel):
         
         self.subtitle_label = tk.Label(
             self.text_frame, 
-            text="Пожалуйста, расслабьте лоб и брови", 
+            text="Please relax your forehead and eyebrows", 
             font=("Helvetica", 10), 
             bg=self.bg_color, 
-            fg="#FFCDD2",  # Светло-розовый оттенок для читаемости
+            fg="#FFCDD2",  # Light pink tint for readability
             anchor="w"
         )
         self.subtitle_label.pack(fill=tk.X)
         
-        # Переменные для перетаскивания окна мышкой
+        # Variables for dragging the window with the mouse
         self._drag_start_x = 0
         self._drag_start_y = 0
         
-        # Привязка событий мыши для возможности перемещения окна в любое место экрана
+        # Bind mouse events to enable moving the window anywhere on the screen
         self.bind("<Button-1>", self.start_drag)
         self.bind("<B1-Motion>", self.drag)
         
-        # Привязываем перетаскивание и к внутренним элементам, чтобы за них тоже можно было тянуть
+        # Bind dragging to child widgets so they can also be used to drag the window
         for widget in [self.container, self.icon_label, self.text_frame, self.title_label, self.subtitle_label]:
             widget.bind("<Button-1>", self.start_drag)
             widget.bind("<B1-Motion>", self.drag)
             
-        # Изначально скрываем окно
+        # Initially hide the window
         self.is_visible = False
         self.withdraw()
         
     def start_drag(self, event: tk.Event) -> None:
-        """Запоминает начальные координаты при клике для перемещения окна."""
+        """Remembers initial click coordinates for moving the window."""
         self._drag_start_x = event.x
         self._drag_start_y = event.y
         
     def drag(self, event: tk.Event) -> None:
-        """Перемещает окно вслед за курсором мыши."""
-        # Вычисляем смещение
+        """Moves the window relative to the mouse cursor."""
+        # Calculate offset
         delta_x = event.x - self._drag_start_x
         delta_y = event.y - self._drag_start_y
         
-        # Новые координаты окна на экране
+        # New window coordinates on the screen
         new_x = self.winfo_x() + delta_x
         new_y = self.winfo_y() + delta_y
         
         self.geometry(f"+{new_x}+{new_y}")
         
     def show_warning(self) -> None:
-        """Мгновенно отображает уведомление на экране."""
+        """Instantly displays the notification on the screen."""
         if not self.is_visible:
             self.deiconify()
-            self.attributes("-topmost", True)  # Повторно форсируем поверх всех окон
+            self.attributes("-topmost", True)  # Force on top again
             self.is_visible = True
             
     def hide_warning(self) -> None:
-        """Скрывает уведомление с экрана."""
+        """Hides the notification from the screen."""
         if self.is_visible:
             self.withdraw()
             self.is_visible = False
             
     def set_opacity(self, alpha: float) -> None:
-        """Позволяет изменять прозрачность окна (0.1 - 1.0)."""
+        """Allows changing the window opacity (0.1 - 1.0)."""
         alpha_val = max(0.1, min(1.0, alpha))
         self.attributes("-alpha", alpha_val)

@@ -1,7 +1,7 @@
 import sys
 import tkinter as tk
 
-# Явный импорт для PyInstaller, чтобы гарантировать упаковку сопряжения Pillow и Tkinter в бинарник
+# Explicit import for PyInstaller to guarantee packaging of the Pillow and Tkinter integration in the binary
 try:
     import PIL._tkinter_finder
 except ImportError:
@@ -10,18 +10,18 @@ except ImportError:
 from frown_guard.app import FrownGuardApp
 
 def main() -> None:
-    """Точка входа в приложение Frown Guard."""
+    """Entry point of the Frown Guard application."""
     try:
         root = tk.Tk()
         
-        # Создаем экземпляр приложения
+        # Create an instance of the application
         app = FrownGuardApp(root)
         
-        # Запускаем бесконечный цикл обработки событий Tkinter
+        # Run the infinite Tkinter event loop
         root.mainloop()
         
     except Exception as e:
-        print(f"Критическая ошибка при запуске приложения: {e}", file=sys.stderr)
+        print(f"Critical error during application startup: {e}", file=sys.stderr)
         sys.exit(1)
 
 if __name__ == "__main__":
