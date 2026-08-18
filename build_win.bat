@@ -22,53 +22,30 @@ exit /b 1
 
 :: 2. Create and configure virtual environment
 if exist venv goto VENV_EXISTS
-echo [1/5] Creating virtual environment venv...
+echo [1/4] Creating virtual environment venv...
 python -m venv venv
 goto VENV_END
 :VENV_EXISTS
-echo [1/5] Virtual environment venv already exists.
+echo [1/4] Virtual environment venv already exists.
 :VENV_END
 
-echo [2/5] Installing dependencies and builder...
+echo [2/4] Installing dependencies and builder...
 call venv\Scripts\activate.bat
-python -m pip install --upgrade pip
+venv\Scripts\python -m pip install --upgrade pip
 pip install -r requirements.txt
 pip install pyinstaller
 
 :: 3. Download MediaPipe model weights
 if exist face_landmarker.task goto MODEL_EXISTS
 echo Downloading face_landmarker.task AI model...
-python -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task', 'face_landmarker.task')"
+venv\Scripts\python -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task', 'face_landmarker.task')"
 goto MODEL_END
 :MODEL_EXISTS
 echo The face_landmarker.task AI model is already downloaded.
 :MODEL_END
 
-:: 4. Generate professional multi-size Windows icon (.ico)
-echo [3/5] Generating frown-guard.ico icon...
-python -c "
-from PIL import Image, ImageDraw
-import os
-
-# Create HD icon image
-img = Image.new('RGBA', (256, 256), color=(198, 40, 40, 255))
-draw = ImageDraw.Draw(img)
-
-# Draw a frowning face
-draw.ellipse([40, 40, 216, 216], fill=(255, 235, 59, 255), outline=(0, 0, 0, 255), width=4)
-draw.ellipse([80, 90, 100, 110], fill=(0, 0, 0, 255))
-draw.ellipse([156, 90, 176, 110], fill=(0, 0, 0, 255))
-draw.arc([80, 140, 176, 190], start=180, end=360, fill=(0, 0, 0, 255), width=6)
-draw.line([70, 75, 110, 85], fill=(0, 0, 0, 255), width=5)
-draw.line([186, 75, 146, 85], fill=(0, 0, 0, 255), width=5)
-
-# Save as authentic Windows ICO supporting all standard Explorer dimensions
-img.save('frown-guard.ico', format='ICO', sizes=[(256, 256), (128, 128), (64, 64), (32, 32), (16, 16)])
-print('Multi-size icon frown-guard.ico successfully generated!')
-"
-
-:: 5. Compile project into a single .exe file with hidden console (--noconsole)
-echo [4/5] Running PyInstaller...
+:: 4. Compile project into a single .exe file with hidden console (--noconsole)
+echo [3/4] Running PyInstaller...
 :: Important: on Windows, semicolon (;) is used as a separator for --add-data
 venv\Scripts\pyinstaller --noconfirm --clean --onefile --noconsole ^
     --name "Frown_Guard" ^
@@ -78,7 +55,7 @@ venv\Scripts\pyinstaller --noconfirm --clean --onefile --noconsole ^
     --icon "frown-guard.ico" ^
     main.py
 
-echo [5/5] Verifying build results...
+echo [4/4] Verifying build results...
 if not exist dist\Frown_Guard.exe goto BUILD_ERROR
 echo.
 echo =======================================================

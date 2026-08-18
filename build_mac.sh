@@ -7,7 +7,7 @@
 set -e
 
 # Remove old compiled artifacts to avoid file replacement conflicts
-rm -f Frown_Guard.dmg
+rm -f dist/Frown_Guard.dmg
 
 echo "=== [1/5] Preparing environment and dependencies ==="
 
@@ -42,28 +42,7 @@ if [ ! -f "face_landmarker.task" ]; then
     venv/bin/python3 -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task', 'face_landmarker.task')"
 fi
 
-echo "=== [2/5] Generating application icon ==="
-# Generate a beautiful application icon using Pillow
-venv/bin/python3 -c "
-from PIL import Image, ImageDraw
-import os
-
-img = Image.new('RGBA', (256, 256), color=(198, 40, 40, 255))
-draw = ImageDraw.Draw(img)
-
-# Draw a frowning face
-draw.ellipse([40, 40, 216, 216], fill=(255, 235, 59, 255), outline=(0, 0, 0, 255), width=4)
-draw.ellipse([80, 90, 100, 110], fill=(0, 0, 0, 255))
-draw.ellipse([156, 90, 176, 110], fill=(0, 0, 0, 255))
-draw.arc([80, 140, 176, 190], start=180, end=360, fill=(0, 0, 0, 255), width=6)
-draw.line([70, 75, 110, 85], fill=(0, 0, 0, 255), width=5)
-draw.line([186, 75, 146, 85], fill=(0, 0, 0, 255), width=5)
-
-img.save('frown-guard.png')
-print('Icon frown-guard.png successfully generated!')
-"
-
-echo "=== [3/5] Compiling macOS App Bundle (.app) ==="
+echo "=== [2/4] Compiling macOS App Bundle (.app) ==="
 # Run PyInstaller with the --windowed (or -w) flag to create a windowed .app bundle
 echo "Running PyInstaller..."
 venv/bin/pyinstaller --noconfirm --clean --windowed \
@@ -74,7 +53,7 @@ venv/bin/pyinstaller --noconfirm --clean --windowed \
     --icon "frown-guard.png" \
     main.py
 
-echo "=== [4/5] Injecting macOS Sandbox Camera Permissions ==="
+echo "=== [3/4] Injecting macOS Sandbox Camera Permissions ==="
 APP_PATH="dist/Frown Guard.app"
 if [ -d "$APP_PATH" ]; then
     echo "Successfully compiled package: $APP_PATH"
@@ -100,15 +79,15 @@ else
     exit 1
 fi
 
-echo "=== [5/5] Creating Apple Disk Image installer (.dmg) ==="
+echo "=== [4/4] Creating Apple Disk Image installer (.dmg) ==="
 # Create a standard .dmg file using the built-in hdiutil utility
-echo "Generating Frown_Guard.dmg..."
-rm -f Frown_Guard.dmg
-hdiutil create -volname "Frown Guard Installer" -srcfolder "dist/Frown Guard.app" -ov -format UDZO "Frown_Guard.dmg"
+echo "Generating dist/Frown_Guard.dmg..."
+rm -f dist/Frown_Guard.dmg
+hdiutil create -volname "Frown Guard Installer" -srcfolder "dist/Frown Guard.app" -ov -format UDZO "dist/Frown_Guard.dmg"
 
 echo ""
 echo "======================================================="
 echo " Packaging for macOS completed successfully!"
 echo " Executable bundle: dist/Frown Guard.app"
-echo " Installer file: Frown_Guard.dmg"
+echo " Installer file: dist/Frown_Guard.dmg"
 echo "======================================================="

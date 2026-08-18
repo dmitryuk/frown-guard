@@ -8,15 +8,21 @@
 set -e
 
 # Remove old compiled artifacts to avoid file locking errors (Text file busy)
-rm -f Frown_Guard-x86_64.AppImage
+rm -f dist/Frown_Guard-x86_64.AppImage
 
 echo "=== [1/6] Preparing environment and dependencies ==="
 
-# Verify the presence of the virtual environment
+# Verify and prepare the virtual environment
 if [ ! -d "venv" ]; then
-    echo "Error: virtual environment 'venv' not found. Please set up the project first."
-    exit 1
+    echo "Creating virtual environment venv..."
+    python3 -m venv venv
 fi
+
+# Install/upgrade dependencies
+echo "Installing/upgrading dependencies..."
+venv/bin/pip install --upgrade pip
+venv/bin/pip install -r requirements.txt
+venv/bin/pip install pyinstaller
 
 # Verify the MediaPipe model file
 if [ ! -f "face_landmarker.task" ]; then
@@ -24,38 +30,7 @@ if [ ! -f "face_landmarker.task" ]; then
     venv/bin/python3 -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task', 'face_landmarker.task')"
 fi
 
-# Install PyInstaller in the venv
-echo "Installing PyInstaller..."
-venv/bin/pip install --upgrade pip
-venv/bin/pip install pyinstaller
-
-echo "=== [2/6] Generating custom application icon ==="
-# Generate a beautiful application icon (red circle with a smiley face) using Pillow
-venv/bin/python3 -c "
-from PIL import Image, ImageDraw, ImageFont
-import os
-
-# Create a base 256x256 image with a red Material background
-img = Image.new('RGBA', (256, 256), color=(198, 40, 40, 255))
-draw = ImageDraw.Draw(img)
-
-# Draw the outline of a frowning face
-# Yellow circle for the smiley
-draw.ellipse([40, 40, 216, 216], fill=(255, 235, 59, 255), outline=(0, 0, 0, 255), width=4)
-# Eyes
-draw.ellipse([80, 90, 100, 110], fill=(0, 0, 0, 255))
-draw.ellipse([156, 90, 176, 110], fill=(0, 0, 0, 255))
-# Sad mouth (arc)
-draw.arc([80, 140, 176, 190], start=180, end=360, fill=(0, 0, 0, 255), width=6)
-# Angled eyebrows
-draw.line([70, 75, 110, 85], fill=(0, 0, 0, 255), width=5)
-draw.line([186, 75, 146, 85], fill=(0, 0, 0, 255), width=5)
-
-img.save('frown-guard.png')
-print('Icon frown-guard.png successfully generated!')
-"
-
-echo "=== [3/6] Packaging executable folder with PyInstaller ==="
+echo "=== [2/5] Packaging executable folder with PyInstaller ==="
 # Compile the application. The --collect-all option is critical for mediapipe,
 # as it gathers all binary libraries (.so) and model metadata.
 echo "Running PyInstaller..."
@@ -66,7 +41,7 @@ venv/bin/pyinstaller --noconfirm --clean --onedir \
     --collect-all "mediapipe" \
     main.py
 
-echo "=== [4/6] Creating AppDir structure ==="
+echo "=== [3/5] Creating AppDir structure ==="
 # Clean old builds
 rm -rf AppDir
 mkdir -p AppDir/usr/bin
@@ -104,7 +79,7 @@ cp frown-guard.png AppDir/usr/share/icons/hicolor/256x256/apps/frown-guard.png
 cp frown-guard.png AppDir/frown-guard.png
 cp AppDir/frown-guard.desktop AppDir/usr/share/applications/frown-guard.desktop
 
-echo "=== [5/6] Downloading appimagetool ==="
+echo "=== [4/5] Downloading appimagetool ==="
 # Download the AppImage build utility
 if [ ! -f "appimagetool" ]; then
     echo "Downloading appimagetool..."
@@ -112,16 +87,17 @@ if [ ! -f "appimagetool" ]; then
     chmod +x appimagetool
 fi
 
-echo "=== [6/6] Compiling final AppImage file ==="
+echo "=== [5/5] Compiling final AppImage file ==="
 # Package the AppImage.
 # The ARCH=x86_64 flag is required. The --appimage-extract-and-run flag allows running appimagetool
 # without requiring FUSE mounting (extremely useful in containers and CI).
 export ARCH=x86_64
-./appimagetool --appimage-extract-and-run AppDir Frown_Guard-x86_64.AppImage
+mkdir -p dist
+./appimagetool --appimage-extract-and-run AppDir dist/Frown_Guard-x86_64.AppImage
 
 echo ""
 echo "======================================================="
 echo " Packaging completed successfully!"
-echo " Executable file: Frown_Guard-x86_64.AppImage"
-echo " Run it with the command: ./Frown_Guard-x86_64.AppImage"
+echo " Executable file: dist/Frown_Guard-x86_64.AppImage"
+echo " Run it with the command: ./dist/Frown_Guard-x86_64.AppImage"
 echo "======================================================="
