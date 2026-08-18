@@ -23,7 +23,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget libegl1-mesa
+          sudo apt-get install -y wget libegl1
 
       - name: Build AppImage
         run: |
