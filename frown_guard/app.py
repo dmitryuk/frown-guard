@@ -52,7 +52,7 @@ class FrownGuardApp:
         self.camera_index = 0
         self.poll_fps = 30.0
         self.debounce_time = 0.5
-        self.current_lang = "RU"
+        self.current_lang = "EN"
         self.translations = TRANSLATIONS
         
         self.load_config()
@@ -79,6 +79,10 @@ class FrownGuardApp:
         self.calibrate_frowned_requested = False
         self.last_combined_score = 1.0  # Буфер для хранения текущего значения детектора
         self.frowning_start_time: Optional[float] = None
+        
+        # Логическое состояние детектора (для локализации без текстовых сравнений)
+        # Возможные значения: "searching", "frowning", "warning", "relaxed", "no_face", "no_cam"
+        self.tracker_state: str = "searching"
         
         # Оформление стилей ttk (с поддержкой темной темы для Combobox)
         self.style = ttk.Style()
@@ -132,7 +136,7 @@ class FrownGuardApp:
                     self.camera_index = config.get("camera_index", 0)
                     self.poll_fps = config.get("poll_fps", 30.0)
                     self.debounce_time = config.get("debounce_time", 0.5)
-                    self.current_lang = config.get("current_lang", "RU")
+                    self.current_lang = config.get("current_lang", "EN")
             except Exception as e:
                 print(f"Не удалось загрузить config.json: {e}")
                 
@@ -503,16 +507,9 @@ class FrownGuardApp:
         self.fps_label.configure(text=t["fps_label_fmt"].format(fps=self.poll_fps))
         self.debounce_label.configure(text=t["debounce_label_fmt"].format(debounce=self.debounce_time))
         
-        # Обновляем текущий статический статус, если лицо не найдено или ищется
-        curr_status = self.status_text_label.cget("text")
-        if curr_status in ["Поиск лица...", "Searching face..."]:
-            self.status_text_label.configure(text=t["status_searching"])
-        elif curr_status in ["Все отлично! 😊", "Looking great! 😊"]:
-            self.status_text_label.configure(text=t["status_relaxed"])
-        elif curr_status in ["Лицо не обнаружено 👤", "No face detected 👤"]:
-            self.status_text_label.configure(text=t["status_no_face"])
-        elif curr_status in ["Камера не найдена", "Camera not found"]:
-            self.status_text_label.configure(text=t["status_no_cam"])
+        # Обновляем текущий статус состояния из логического флага состояния (чистый ООП подход!)
+        if hasattr(self, "status_text_label") and self.tracker_state:
+            self.status_text_label.configure(text=t[f"status_{self.tracker_state}"])
         
     def scan_cameras(self) -> Dict[int, str]:
         """
@@ -642,6 +639,7 @@ class FrownGuardApp:
         self.cap = cv2.VideoCapture(self.camera_index)
         t = self.translations[self.current_lang]
         if not self.cap.isOpened():
+            self.tracker_state = "no_cam"
             messagebox.showerror(t["msg_cam_err_title"], t["msg_cam_err_access"])
             self.status_text_label.configure(text=t["status_no_cam"], fg=self.colors["alert"])
             return
@@ -799,16 +797,19 @@ class FrownGuardApp:
                     elapsed = time.time() - self.frowning_start_time
                     
                     if elapsed >= self.debounce_time:
+                        self.tracker_state = "frowning"
                         self.status_text_label.configure(text=t["status_frowning"], fg=self.colors["alert"])
                         self.frown_bar.configure(bg=self.colors["alert"])
                         # Показываем оверлей
                         self.overlay.show_warning()
                     else:
                         # Хмурится, но задержка еще не прошла
+                        self.tracker_state = "warning"
                         self.status_text_label.configure(text=t["status_warning"], fg="#FFC107")  # Янтарный предупреждающий
                         self.frown_bar.configure(bg="#FFC107")
                         self.overlay.hide_warning()
                 else:
+                    self.tracker_state = "relaxed"
                     self.frowning_start_time = None
                     self.status_text_label.configure(text=t["status_relaxed"], fg=self.colors["success"])
                     self.frown_bar.configure(bg=self.colors["success"])
@@ -844,6 +845,7 @@ class FrownGuardApp:
             else:
                 # Если лицо не найдено в кадре
                 t = self.translations[self.current_lang]
+                self.tracker_state = "no_face"
                 self.frowning_start_time = None
                 self.status_text_label.configure(text=t["status_no_face"], fg=self.colors["text_muted"])
                 self.frown_bar.place(relwidth=0.0)
