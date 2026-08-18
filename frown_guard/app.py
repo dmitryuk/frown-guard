@@ -57,7 +57,7 @@ class FrownGuardApp:
         
         self.load_config()
         
-        # Инициализация детектора и оверлея
+        # Initialize facial expression detector and window overlay
         self.detector = FaceFrownDetector()
         self.detector.set_calibration(self.relaxed_score, self.frowned_score)
         self.detector.sensitivity = self.sensitivity
@@ -65,38 +65,38 @@ class FrownGuardApp:
         self.overlay = FrownWarningOverlay(self.root)
         self.overlay.set_opacity(self.overlay_opacity)
         
-        # Мьютекс для безопасного многопоточного доступа к объекту VideoCapture
+        # Mutex lock for thread-safe access to the cv2.VideoCapture pointer
         self.cap_lock = threading.Lock()
         
-        # Поток для захвата видео и очередь для кадров
+        # Video capture worker thread and frame queue
         self.video_queue: queue.Queue = queue.Queue(maxsize=2)
         self.is_running = True
         self.cap: Optional[cv2.VideoCapture] = None
         self.video_thread: Optional[threading.Thread] = None
         
-        # Флаги запросов калибровки из GUI
+        # Calibration request flags triggered from GUI events
         self.calibrate_relaxed_requested = False
         self.calibrate_frowned_requested = False
-        self.last_combined_score = 1.0  # Буфер для хранения текущего значения детектора
+        self.last_combined_score = 1.0  # Buffer to store the last combined metric score
         self.frowning_start_time: Optional[float] = None
         
-        # Логическое состояние детектора (для локализации без текстовых сравнений)
-        # Возможные значения: "searching", "frowning", "warning", "relaxed", "no_face", "no_cam"
+        # Logical tracker state (to localize text on-the-fly without fragile string comparisons)
+        # Possible values: "searching", "frowning", "warning", "relaxed", "no_face", "no_cam"
         self.tracker_state: str = "searching"
         
-        # Оформление стилей ttk (с поддержкой темной темы для Combobox)
+        # Styling configurations for ttk widgets (with dark theme support)
         self.style = ttk.Style()
         self.style.theme_use("default")
         self.style.configure(".", background=self.colors["bg"], foreground=self.colors["text"])
         self.style.configure("TLabel", background=self.colors["bg"], foreground=self.colors["text"])
         
-        # Настройка внутренних отступов (padding) и стрелочки для комфортного отображения Combobox
+        # Configure internal padding and dropdown arrow size for ttk.Combobox
         self.style.configure('TCombobox', 
-            padding=(10, 6),  # Отступы: 10px слева/справа, 6px сверху/снизу
-            arrowsize=14      # Пропорциональный размер стрелочки выбора
+            padding=(10, 6),  # Margins: 10px sides, 6px top/bottom
+            arrowsize=14      # Proportional arrow selector size
         )
         
-        # Настройка цветов выпадающего списка Combobox для устранения невидимого/белого текста в Linux GTK
+        # Map Combobox colors to resolve white-on-white text issues on Linux GTK themes
         self.style.map('TCombobox', 
             fieldbackground=[('readonly', self.colors["card"])],
             background=[('readonly', self.colors["card"])],
@@ -105,26 +105,26 @@ class FrownGuardApp:
             selectforeground=[('readonly', self.colors["bg"])]
         )
         
-        # Настройка выпадающего списка (listbox) внутри Combobox
+        # Configure the dropdown popup listbox styling explicitly
         self.root.option_add('*TCombobox*Listbox.background', self.colors["card"])
         self.root.option_add('*TCombobox*Listbox.foreground', self.colors["text"])
         self.root.option_add('*TCombobox*Listbox.selectBackground', self.colors["accent"])
         self.root.option_add('*TCombobox*Listbox.selectForeground', self.colors["bg"])
         
-        # Построение интерфейса
+        # Build graphical widgets
         self.create_widgets()
         
-        # Запуск фонового видеопотока
+        # Start background camera stream
         self.start_video_stream()
         
-        # Запуск опроса очереди обработанных кадров
+        # Start polling the processed frames queue
         self.poll_queue()
         
-        # Корректное закрытие приложения
+        # Securely release resources upon window close
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
     def load_config(self) -> None:
-        """Загружает калибровочные параметры из файла конфигурации JSON."""
+        """Loads calibration parameters from JSON configuration file."""
         if os.path.exists(self.CONFIG_FILE):
             try:
                 with open(self.CONFIG_FILE, "r", encoding="utf-8") as f:
@@ -138,10 +138,10 @@ class FrownGuardApp:
                     self.debounce_time = config.get("debounce_time", 0.5)
                     self.current_lang = config.get("current_lang", "EN")
             except Exception as e:
-                print(f"Не удалось загрузить config.json: {e}")
+                print(f"Could not load config.json: {e}")
                 
     def save_config(self) -> None:
-        """Сохраняет текущие параметры в JSON."""
+        """Saves current configuration to JSON file."""
         try:
             config = {
                 "relaxed_score": self.relaxed_score,
@@ -156,37 +156,37 @@ class FrownGuardApp:
             with open(self.CONFIG_FILE, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)
         except Exception as e:
-            print(f"Не удалось сохранить config.json: {e}")
+            print(f"Could not save config.json: {e}")
 
     def create_widgets(self) -> None:
-        """Создает стильные виджеты интерфейса на основе Grid-верстки."""
-        # Главный контейнер с отступами
+        """Creates stylish interface widgets based on the grid/pack layout."""
+        # Main container frame with padding
         main_container = tk.Frame(self.root, bg=self.colors["bg"])
         main_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        # Левая часть — Видеопоток
+        # Left column — Video stream preview container
         self.video_frame = tk.Frame(main_container, bg=self.colors["card"], highlightbackground=self.colors["border"], highlightthickness=1)
         self.video_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         
-        # Заголовок видео
+        # Video title label
         self.video_title = tk.Label(
             self.video_frame, 
             text="Камера контроля мимики", 
-            font=("Helvetica", 12, "bold"), 
+            font=("Helvetica", 12, "bold"),  
             bg=self.colors["card"], 
             fg=self.colors["text"]
         )
         self.video_title.pack(fill=tk.X, pady=10)
         
-        # Область вывода видео
+        # Video display container label
         self.video_label = tk.Label(self.video_frame, bg=self.colors["bg"])
         self.video_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 5))
         
-        # Нижняя панель внутри видео-фрейма (для селектора языка в левом нижнем углу)
+        # Bottom panel inside the video frame (for language selection in the bottom-left corner)
         video_bottom_bar = tk.Frame(self.video_frame, bg=self.colors["card"])
         video_bottom_bar.pack(fill=tk.X, side=tk.BOTTOM, padx=10, pady=(5, 10))
         
-        # Метка выбора языка (универсальная иконка глобуса)
+        # Language selector label (universal globe icon)
         self.lang_label = tk.Label(
             video_bottom_bar, 
             text="🌐", 
@@ -196,7 +196,7 @@ class FrownGuardApp:
         )
         self.lang_label.pack(side=tk.LEFT, padx=(5, 5))
         
-        # Выпадающий список выбора языка
+        # Interface language selection dropdown
         self.lang_combobox = ttk.Combobox(
             video_bottom_bar, 
             values=["RU", "EN"], 
@@ -231,14 +231,14 @@ class FrownGuardApp:
         self.frown_bar = tk.Frame(progress_bg, bg=self.colors["accent"])
         self.frown_bar.place(x=0, y=0, relwidth=0.0, relheight=1.0)
         
-        # Линия-порог срабатывания (поверх прогресс-бара)
+        # Calibration action threshold indicator line (rendered on top of progress bar)
         self.threshold_line = tk.Frame(progress_bg, bg=self.colors["text_muted"], width=2)
         self.threshold_line.place(relx=0.5, y=0, relheight=1.0)
         
         self.metrics_label = tk.Label(status_card, text="Метрика: 0.00 | Порог: 0.00", font=("Courier", 10), bg=self.colors["card"], fg=self.colors["text_muted"])
         self.metrics_label.pack(anchor="w", padx=15, pady=(0, 10))
         
-        # 2. Секция калибровки (Карточка)
+        # 2. Muscle Calibration Card
         calib_card = tk.Frame(control_frame, bg=self.colors["card"], highlightbackground=self.colors["border"], highlightthickness=1)
         calib_card.pack(fill=tk.X, pady=(0, 15))
         
@@ -256,7 +256,7 @@ class FrownGuardApp:
         )
         self.calib_desc_label.pack(anchor="w", padx=15, pady=(0, 10))
         
-        # Кнопки калибровки с плоским стилем и hover-эффектом
+        # Calibration action buttons with flat modern styles
         self.btn_cal_relaxed = tk.Button(
             calib_card, 
             text="😊 Спокойное лицо", 
@@ -281,14 +281,14 @@ class FrownGuardApp:
         )
         self.btn_cal_frowned.pack(fill=tk.X, padx=15, pady=(0, 15), ipady=6)
         
-        # 3. Секция настроек (Карточка)
+        # 3. Tuning & Preferences Card
         settings_card = tk.Frame(control_frame, bg=self.colors["card"], highlightbackground=self.colors["border"], highlightthickness=1)
         settings_card.pack(fill=tk.BOTH, expand=True)
         
         self.settings_title_label = tk.Label(settings_card, text="ТОНКАЯ НАСТРОЙКА", font=("Helvetica", 9, "bold"), bg=self.colors["card"], fg=self.colors["text_muted"])
         self.settings_title_label.pack(anchor="w", padx=15, pady=(10, 5))
         
-        # Выбор камеры
+        # Camera source dropdown
         self.camera_title_label = tk.Label(settings_card, text="Активная камера:", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
         self.camera_title_label.pack(anchor="w", padx=15, pady=(5, 2))
         
@@ -319,11 +319,11 @@ class FrownGuardApp:
         self.cam_combobox.pack(fill=tk.X, padx=15, pady=(0, 10))
         self.cam_combobox.bind("<<ComboboxSelected>>", self.on_camera_change)
         
-        # Слайдер Чувствительности
+        # Sensitivity slider
         self.sens_label = tk.Label(settings_card, text=f"Чувствительность: {self.sensitivity:.0f}%", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
         self.sens_label.pack(anchor="w", padx=15, pady=(5, 0))
         
-        # Кастомный слайдер через Tkinter.Scale
+        # Custom flat slider using Tkinter.Scale
         self.sens_slider = tk.Scale(
             settings_card, 
             from_=1.0, to=99.0, 
@@ -340,7 +340,7 @@ class FrownGuardApp:
         self.sens_slider.set(self.sensitivity)
         self.sens_slider.pack(fill=tk.X, padx=15, pady=(0, 10))
         
-        # Слайдер Прозрачности оверлея
+        # Overlay opacity slider
         self.opacity_label = tk.Label(settings_card, text=f"Прозрачность баннера: {self.overlay_opacity*100:.0f}%", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
         self.opacity_label.pack(anchor="w", padx=15, pady=(5, 0))
         
@@ -444,7 +444,7 @@ class FrownGuardApp:
         self.save_config()
         
     def on_opacity_change(self, value: str) -> None:
-        """Вызывается при изменении прозрачности оверлея."""
+        """Triggered when the opacity slider is dragged."""
         val = float(value) / 100.0
         self.overlay_opacity = val
         self.overlay.set_opacity(val)
@@ -453,7 +453,7 @@ class FrownGuardApp:
         self.save_config()
         
     def on_fps_change(self, value: str) -> None:
-        """Вызывается при изменении частоты опроса."""
+        """Triggered when the polling FPS slider is dragged."""
         val = float(value)
         self.poll_fps = val
         fmt = self.translations[self.current_lang]["fps_label_fmt"]
@@ -461,7 +461,7 @@ class FrownGuardApp:
         self.save_config()
         
     def on_debounce_change(self, value: str) -> None:
-        """Вызывается при изменении задержки появления баннера."""
+        """Triggered when the banner debounce delay slider is dragged."""
         val = float(value)
         self.debounce_time = val
         fmt = self.translations[self.current_lang]["debounce_label_fmt"]
@@ -469,86 +469,85 @@ class FrownGuardApp:
         self.save_config()
         
     def on_lang_change(self, event: Any) -> None:
-        """Вызывается при изменении языка интерфейса."""
+        """Triggered when the selected interface language is swapped in combobox."""
         self.current_lang = self.lang_combobox.get()
         self.save_config()
         self.update_ui_text()
         
     def update_ui_text(self) -> None:
-        """Обновляет все тексты в интерфейсе в соответствии с выбранным языком."""
+        """Re-renders all interface labels and layouts according to the chosen language."""
         lang = self.current_lang
         t = self.translations[lang]
         
-        # Обновляем заголовок главного окна
+        # Update main window title
         self.root.title(t["window_title"])
         
-        # Обновляем оверлей-баннер
+        # Update floating warning banner
         self.overlay.title_label.configure(text=t["overlay_title"])
         self.overlay.subtitle_label.configure(text=t["overlay_subtitle"])
         
-        # Левая колонка
+        # Left column guides
         self.video_title.configure(text=t["video_title"])
         
-        # Правая колонка (Заголовки секций)
+        # Right column (Section headers)
         self.status_title_label.configure(text=t["status_header"])
         self.calib_title_label.configure(text=t["calib_header"])
         self.calib_desc_label.configure(text=t["calib_desc"])
         self.settings_title_label.configure(text=t["settings_header"])
         self.camera_title_label.configure(text=t["camera_label"])
         
-        # Кнопки
+        # Interactive buttons
         self.btn_cal_relaxed.configure(text=t["btn_relaxed"])
         self.btn_cal_frowned.configure(text=t["btn_frowned"])
         self.btn_reset.configure(text=t["btn_reset"])
         
-        # Форматированные подписи слайдеров
+        # Slider descriptions formatting
         self.sens_label.configure(text=t["sens_label_fmt"].format(sens=self.sensitivity))
         self.opacity_label.configure(text=t["opacity_label_fmt"].format(opacity=self.overlay_opacity * 100.0))
         self.fps_label.configure(text=t["fps_label_fmt"].format(fps=self.poll_fps))
         self.debounce_label.configure(text=t["debounce_label_fmt"].format(debounce=self.debounce_time))
         
-        # Обновляем текущий статус состояния из логического флага состояния (чистый ООП подход!)
+        # Update static tracker status label based on our logical state
         if hasattr(self, "status_text_label") and self.tracker_state:
             self.status_text_label.configure(text=t[f"status_{self.tracker_state}"])
         
     def scan_cameras(self) -> Dict[int, str]:
         """
-        Сканирует доступные веб-камеры в системе.
-        Возвращает словарь {индекс: "Имя веб-камеры"}.
+        Scans available system webcams using both v4l2 device nodes and capture tests.
+        Returns a dictionary mapping {index: "Camera Name"}.
         """
         cameras = {}
-        # Опрашиваем первые 8 индексов в системе
+        # Poll the first 8 device indices in the system
         for i in range(8):
             device_name = ""
-            # Попытка получить имя на Linux через sysfs
+            # Attempt to read camera product name on Linux via sysfs directory
             name_file = f"/sys/class/video4linux/video{i}/name"
             if os.path.exists(name_file):
                 try:
                     with open(name_file, "r", encoding="utf-8") as f:
                         device_name = f.read().strip()
-                        # Очищаем имя от повторений
+                        # Clean up repeating keywords
                         if ":" in device_name:
                             device_name = device_name.split(":")[0].strip()
                 except Exception:
                     pass
             
-            # Если имя не найдено (или мы на другой ОС)
+            # Fallback if name is not found (or running on macOS/Windows)
             if not device_name:
-                device_name = f"Камера {i}"
+                device_name = f"Camera {i}"
                 
-            # Проверяем работоспособность камеры
+            # Validate that camera resource is openable
             cap = cv2.VideoCapture(i)
             if cap.isOpened():
-                # Пробуем считать реальный кадр.
-                # Это отсеивает чисто сервисные каналы метаданных в Linux (v4l2), 
-                # которые открываются, но не выдают видео.
+                # Attempt to read a real frame.
+                # This successfully filters out metadata-only/auxiliary v4l2 sub-devices on Linux,
+                # which can be opened but fail to stream video matrices.
                 ret, _ = cap.read()
                 if ret:
                     cameras[i] = device_name
                 cap.release()
                 
-        # Если из-за занятости другими приложениями ни одна камера не прошла проверку через read(),
-        # делаем мягкую проверку (просто по существованию устройства в v4l2)
+        # Fallback check using device listings if cameras are busy or capture test fails
         if not cameras:
             for i in range(5):
                 name_file = f"/sys/class/video4linux/video{i}/name"
@@ -556,21 +555,22 @@ class FrownGuardApp:
                     try:
                         with open(name_file, "r", encoding="utf-8") as f:
                             name = f.read().strip().split(":")[0].strip()
+                            # Ignore obvious metadata nodes by checking sub-device names
                             if "metadata" not in name.lower() and "association" not in name.lower():
                                 cameras[i] = name
                     except Exception:
                         pass
                         
-        # Если список всё ещё пуст, даем дефолтный индекс 0
+        # Fallback to default index 0 if list remains empty
         if not cameras:
-            cameras[0] = "Основная камера"
+            cameras[0] = "Default Camera"
             
         return cameras
         
     def on_camera_change(self, event: Any) -> None:
-        """Обрабатывает выбор новой камеры из списка."""
+        """Triggered when another camera is selected from the combobox."""
         selected_str = self.cam_combobox.get()
-        # Извлекаем ID из строки формата "Название камеры [ID: X]"
+        # Parse system camera index from string formatted as "Name [ID: X]"
         try:
             parts = selected_str.split("[ID: ")
             new_index = int(parts[-1].replace("]", "").strip())
@@ -583,19 +583,19 @@ class FrownGuardApp:
         self.camera_index = new_index
         self.save_config()
         
-        self.status_text_label.configure(text="Переключение камеры...", fg=self.colors["accent"])
+        self.status_text_label.configure(text="Switching camera...", fg=self.colors["accent"])
         
-        # Переключаем камеру в фоновом потоке, чтобы GUI не зависал
+        # Swap camera resources in a background thread to prevent GUI lockups
         threading.Thread(target=self._switch_camera_resource, daemon=True).start()
         
     def _switch_camera_resource(self) -> None:
-        """Безопасно переподключает захват камеры в фоновом потоке."""
-        # Открываем новую камеру ВНЕ лока, так как это долгая операция на уровне ОС
+        """Safely reconnects to the newly selected camera in a background thread."""
+        # Instantiate VideoCapture outside the mutex lock (takes up to 1s on OS drivers)
         new_cap = cv2.VideoCapture(self.camera_index)
         
         with self.cap_lock:
             old_cap = self.cap
-            self.cap = None  # Фоновый рабочий поток временно будет спать
+            self.cap = None  # Set self.cap = None to put the processing worker thread to sleep
             
             if old_cap is not None:
                 old_cap.release()
@@ -608,7 +608,7 @@ class FrownGuardApp:
                 success = False
                 
         if not success:
-            # Пытаемся вернуться на первую доступную рабочую камеру
+            # Fallback to the first available working device on failure
             fallback_index = 0
             if self.available_cams:
                 fallback_index = list(self.available_cams.keys())[0]
@@ -620,7 +620,7 @@ class FrownGuardApp:
                     self.cap = fallback_cap
                     self.camera_index = fallback_index
                     self.save_config()
-                    # Ищем текст комбобокса, соответствующий fallback_index
+                    # Restore combobox selection to the fallback device
                     for opt in self.cam_combobox["values"]:
                         if f"[ID: {fallback_index}]" in opt:
                             self.root.after(0, lambda o=opt: self.cam_combobox.set(o))
@@ -635,7 +635,7 @@ class FrownGuardApp:
             ))
 
     def start_video_stream(self) -> None:
-        """Инициализирует веб-камеру и запускает фоновый поток обработки."""
+        """Initializes the webcam device and spawns the background worker processing thread."""
         self.cap = cv2.VideoCapture(self.camera_index)
         t = self.translations[self.current_lang]
         if not self.cap.isOpened():
@@ -644,17 +644,17 @@ class FrownGuardApp:
             self.status_text_label.configure(text=t["status_no_cam"], fg=self.colors["alert"])
             return
             
-        # Запускаем фоновый поток обработки
+        # Spawns background worker processing thread
         self.video_thread = threading.Thread(target=self.capture_and_process, daemon=True)
         self.video_thread.start()
         
     def capture_and_process(self) -> None:
         """
-        Фоновый цикл:
-        1. Читает кадры с камеры.
-        2. Прогоняет через детектор MediaPipe.
-        3. Рисует визуальные ориентиры.
-        4. Конвертирует в ImageTk и передает в GUI поток.
+        Background processing loop:
+        1. Captures webcam frames;
+        2. Analyzes expression landmarks;
+        3. Annotates frames;
+        4. Injects frames into the Tkinter queue.
         """
         while self.is_running:
             with self.cap_lock:
@@ -662,7 +662,7 @@ class FrownGuardApp:
                     cap_is_valid = False
                 else:
                     cap_is_valid = True
-                    # Считываем кадр внутри лока, чтобы гарантировать, что ресурс не освободят посреди операции
+                    # Safely read a frame while holding the mutex lock
                     ret, frame = self.cap.read()
                     
             if not cap_is_valid:
@@ -673,53 +673,51 @@ class FrownGuardApp:
                 time.sleep(0.01)
                 continue
                 
-            # Отражаем кадр горизонтально для зеркального эффекта
+            # Flip frame horizontally for mirror-like visual experience
             frame = cv2.flip(frame, 1)
             h, w, c = frame.shape
             
-            # Конвертируем из BGR в RGB для MediaPipe
+            # Convert BGR to RGB for MediaPipe consumption
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
-            # Обработка через наш FaceFrownDetector
+            # Process frame through FaceFrownDetector
             metrics, landmarks = self.detector.process_frame(frame_rgb)
             
-            # Отрисовка ориентиров на кадре для наглядности (если предпросмотр включен)
+            # Draw key guide landmarks on top of frame (if preview is enabled)
             if self.show_video_preview and landmarks is not None:
-                # Извлекаем координаты ключевых точек для отрисовки
+                # Extract coordinate positions of key eyebrows and eyes guides
                 try:
                     p_r_brow = landmarks[self.detector.RIGHT_EYEBROW_INNER]
                     p_l_brow = landmarks[self.detector.LEFT_EYEBROW_INNER]
                     p_r_eye = landmarks[self.detector.RIGHT_EYE_INNER]
                     p_l_eye = landmarks[self.detector.LEFT_EYE_INNER]
                     
-                    # Переводим из относительных координат в пиксельные
+                    # Map normalized coordinates back to actual pixel dimensions
                     px_r_brow = (int(p_r_brow.x * w), int(p_r_brow.y * h))
                     px_l_brow = (int(p_l_brow.x * w), int(p_l_brow.y * h))
                     px_r_eye = (int(p_r_eye.x * w), int(p_r_eye.y * h))
                     px_l_eye = (int(p_l_eye.x * w), int(p_l_eye.y * h))
                     
-                    # Цвет отрисовки меняется в зависимости от того, хмурится ли пользователь
+                    # Draw green points normally, or red points if user is frowning
                     color_marker = (50, 220, 50) if not (metrics and metrics["is_frowning"]) else (50, 50, 255)
                     
-                    # Рисуем точки глаз и бровей
+                    # Render eyebrows and inner eye points
                     cv2.circle(frame_rgb, px_r_brow, 4, color_marker, -1)
                     cv2.circle(frame_rgb, px_l_brow, 4, color_marker, -1)
                     cv2.circle(frame_rgb, px_r_eye, 4, (255, 100, 0), -1)
                     cv2.circle(frame_rgb, px_l_eye, 4, (255, 100, 0), -1)
                     
-                    # Рисуем линии контроля
+                    # Render horizontal and vertical guidance lines
                     cv2.line(frame_rgb, px_r_brow, px_l_brow, color_marker, 2)
                     cv2.line(frame_rgb, px_r_brow, px_r_eye, (0, 180, 255), 1)
                     cv2.line(frame_rgb, px_l_brow, px_l_eye, (0, 180, 255), 1)
                     
                 except Exception as draw_err:
-                    print(f"Ошибка рисования маркеров: {draw_err}")
+                    print(f"Error rendering facial markers: {draw_err}")
             
-            # Подготовка кадра для GUI
+            # Scale and convert frame for Tkinter canvas consumption
             pil_img = None
             if self.show_video_preview:
-                # Масштабируем кадр, чтобы он красиво умещался в панель видео
-                # Максимальный размер 540x400
                 max_w, max_h = 540, 400
                 scale = min(max_w / w, max_h / h)
                 new_w, new_h = int(w * scale), int(h * scale)
@@ -727,9 +725,9 @@ class FrownGuardApp:
                 frame_resized = cv2.resize(frame_rgb, (new_w, new_h))
                 pil_img = Image.fromarray(frame_resized)
                 
-            # Передаем кадр и метрики в очередь
+            # Inject finished frame and status dictionary into the GUI queue
             try:
-                # Очищаем очередь, если она полная, чтобы не было задержек (лага) видео
+                # Purge backed-up frames in queue to maintain realtime response and zero lag
                 if self.video_queue.full():
                     try:
                         self.video_queue.get_nowait()
@@ -739,20 +737,19 @@ class FrownGuardApp:
             except Exception:
                 pass
                 
-            # Рассчитываем динамическую паузу на основе выбранной частоты опроса (от 2 до 30 кадров/сек)
+            # Sleep dynamically based on selected polling FPS to save CPU load
             sleep_time = 1.0 / max(2.0, self.poll_fps)
             time.sleep(sleep_time)
 
     def poll_queue(self) -> None:
         """
-        Регулярный опрос очереди в потоке GUI.
-        Обновляет изображение на экране, прогресс-бары, текст и статус оверлея.
+        Regularly polls queue from Tkinter GUI thread to update video feeds, progress bars, and warn banners.
         """
         if not self.is_running:
             return
             
         latest_item = None
-        # Забираем самый последний кадр из очереди, чтобы видео было плавным и без задержек
+        # Retrieve only the most recent processed frame to prevent video lag
         while not self.video_queue.empty():
             try:
                 latest_item = self.video_queue.get_nowait()
@@ -762,34 +759,34 @@ class FrownGuardApp:
         if latest_item is not None:
             pil_img, metrics = latest_item
             
-            # 1. Обновляем картинку веб-камеры
+            # 1. Update webcam canvas display
             if self.show_video_preview and pil_img is not None:
                 try:
                     img_tk = ImageTk.PhotoImage(image=pil_img)
                     self.video_label.configure(image=img_tk)
-                    self.video_label.image = img_tk  # Сохраняем ссылку на объект!
+                    self.video_label.image = img_tk  # Maintain reference to prevent garbage collection
                 except Exception as tk_img_err:
-                    print(f"Ошибка вывода кадра в Tkinter: {tk_img_err}")
+                    print(f"Error rendering image on Tkinter canvas: {tk_img_err}")
             
-            # 2. Обновляем метрики и интерфейс контроля
+            # 2. Update status and metrics panel
             if metrics is not None:
                 frown_pct = metrics["frown_level_pct"]
                 threshold_pct = metrics["threshold_pct"]
                 is_frowning = metrics["is_frowning"]
                 score = metrics["combined_score"]
                 
-                # Буферизуем текущий балл для калибровки
+                # Buffer latest combined score for calibration use
                 self.last_combined_score = score
                 
-                # Обновляем прогресс-бар уровня хмурости
+                # Update the horizontal progress bar relative width
                 self.frown_bar.place(relwidth=frown_pct / 100.0)
                 
-                # Позиционируем линию порога
+                # Position threshold line coordinate
                 self.threshold_line.place(relx=threshold_pct / 100.0)
                 
                 t = self.translations[self.current_lang]
                 
-                # Текст, цвета и задержка появления (debounce)
+                # Evaluate frowning debounce and trigger warn overlays
                 if is_frowning:
                     if self.frowning_start_time is None:
                         self.frowning_start_time = time.time()
@@ -800,12 +797,10 @@ class FrownGuardApp:
                         self.tracker_state = "frowning"
                         self.status_text_label.configure(text=t["status_frowning"], fg=self.colors["alert"])
                         self.frown_bar.configure(bg=self.colors["alert"])
-                        # Показываем оверлей
                         self.overlay.show_warning()
                     else:
-                        # Хмурится, но задержка еще не прошла
                         self.tracker_state = "warning"
-                        self.status_text_label.configure(text=t["status_warning"], fg="#FFC107")  # Янтарный предупреждающий
+                        self.status_text_label.configure(text=t["status_warning"], fg="#FFC107")  # Amber warning status
                         self.frown_bar.configure(bg="#FFC107")
                         self.overlay.hide_warning()
                 else:
@@ -813,10 +808,9 @@ class FrownGuardApp:
                     self.frowning_start_time = None
                     self.status_text_label.configure(text=t["status_relaxed"], fg=self.colors["success"])
                     self.frown_bar.configure(bg=self.colors["success"])
-                    # Скрываем оверлей
                     self.overlay.hide_warning()
                     
-                # Подпись с численными данными
+                # Format metrics labels
                 fmt = t["metrics_label_fmt"]
                 threshold_score = self.detector.relaxed_score - (self.detector.relaxed_score - self.detector.frowned_score) * (threshold_pct / 100.0)
                 self.metrics_label.configure(
@@ -828,7 +822,7 @@ class FrownGuardApp:
                     )
                 )
                 
-                # Выполняем калибровку в безопасном GUI-потоке, если были нажаты кнопки
+                # Perform calibration securely in main thread on request flags
                 if self.calibrate_relaxed_requested:
                     self.calibrate_relaxed_requested = False
                     self.relaxed_score = self.last_combined_score
@@ -843,7 +837,7 @@ class FrownGuardApp:
                     self.save_config()
                     messagebox.showinfo(t["msg_cal_title"], t["msg_cal_frowned_ok"].format(score=self.frowned_score))
             else:
-                # Если лицо не найдено в кадре
+                # Fallback if face is not found in frame
                 t = self.translations[self.current_lang]
                 self.tracker_state = "no_face"
                 self.frowning_start_time = None
@@ -851,30 +845,30 @@ class FrownGuardApp:
                 self.frown_bar.place(relwidth=0.0)
                 self.overlay.hide_warning()
                 
-        # Назначаем следующий вызов poll_queue через 15 мс (примерно 60 FPS опроса)
+        # Request next queue check in 15 ms
         self.root.after(15, self.poll_queue)
         
     def on_closing(self) -> None:
-        """Очищает ресурсы при выходе из приложения."""
+        """Releases all open resources safely on application close."""
         self.is_running = False
         
-        # Освобождаем оверлей
+        # Close warning banner
         try:
             self.overlay.destroy()
         except Exception:
             pass
             
-        # Останавливаем камеру под защитой лока
+        # Safely release OpenCV webcam under mutex lock
         with self.cap_lock:
             if self.cap is not None:
                 self.cap.release()
                 self.cap = None
             
-        # Закрываем детектор
+        # Release MediaPipe Tasks model
         try:
             self.detector.close()
         except Exception:
             pass
             
-        # Закрываем Tkinter
+        # Destroy Tkinter window
         self.root.destroy()
