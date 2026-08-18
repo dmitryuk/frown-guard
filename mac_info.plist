@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSCameraUsageDescription</key>
+    <string>This application requires access to the webcam to monitor facial expressions and scowling in real-time.</string>
+    <key>CFBundleDisplayName</key>
+    <string>Frown Guard</string>
+    <key>CFBundleName</key>
+    <string>Frown Guard</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.frown.guard</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.13</string>
+</dict>
+</plist>
