@@ -1,0 +1,23 @@
+# Python virtual environments and caches
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# PyInstaller & Build artifacts
+build/
+dist/
+AppDir/
+*.spec
+
+# Large weights and binaries
+*.task
+Frown_Guard-x86_64.AppImage
+appimagetool
+frown-guard.png
+
+# User configurations and IDEs
+.idea/
+config.json
