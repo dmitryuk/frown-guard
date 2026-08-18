@@ -13,7 +13,7 @@ python --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ОШИБКА] Python не найден в переменной окружения PATH!
     echo Пожалуйста, установите Python 3 (обязательно отметьте галочку "Add Python to PATH" при установке).
-    pause
+    if "%CI%"=="" pause
     exit /b 1
 )
 
@@ -84,4 +84,4 @@ if exist dist\Frown_Guard.exe (
     echo [ОШИБКА] Сборка завершилась неудачно! Проверьте логи компиляции выше.
 )
 
-pause
+if "%CI%"=="" pause
