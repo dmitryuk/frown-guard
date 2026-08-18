@@ -199,7 +199,7 @@ class FrownGuardApp:
         # Interface language selection dropdown
         self.lang_combobox = ttk.Combobox(
             video_bottom_bar, 
-            values=["RU", "EN"], 
+            values=["EN", "RU", "DE", "FR"], 
             state="readonly",
             width=6,
             font=("Helvetica", 9)

@@ -72,5 +72,79 @@ TRANSLATIONS = {
         
         "overlay_title": "Don't frown!",
         "overlay_subtitle": "Please relax your forehead and eyebrows"
+    },
+    "DE": {
+        "window_title": "Frown Guard — Mimikkontrolle",
+        "video_title": "Kamera zur Mimikkontrolle",
+        "status_header": "AKTUELLER STATUS",
+        "status_searching": "Suche Gesicht...",
+        "status_frowning": "STIRN RUNZELN! 😡",
+        "status_warning": "Achtung... ⏳",
+        "status_relaxed": "Sieht gut aus! 😊",
+        "status_no_face": "Kein Gesicht erkannt 👤",
+        "status_no_cam": "Kamera nicht gefunden",
+        "metrics_label_fmt": "Metrik: {score:.3f} | Schwelle: {threshold_score:.3f}\nZornesfalte: {frown_pct:.1f}% / Schwelle: {threshold_pct:.1f}%",
+        
+        "calib_header": "INDIVIDUELLE KALIBRIERUNG",
+        "calib_desc": "Klicken Sie auf 'Entspanntes Gesicht', während Sie gerade und entspannt schauen. Runzeln Sie dann die Stirn und klicken Sie auf 'Gerümpftes Gesicht'.",
+        "btn_relaxed": "😊 Entspanntes Gesicht",
+        "btn_frowned": "😡 Gerümpftes Gesicht",
+        
+        "settings_header": "FEINEINSTELLUNG",
+        "camera_label": "Aktive Kamera:",
+        "sens_label_fmt": "Empfindlichkeit: {sens:.0f}%",
+        "opacity_label_fmt": "Banner-Deckkraft: {opacity:.0f}%",
+        "fps_label_fmt": "Abfragerate: {fps:.0f} FPS",
+        "debounce_label_fmt": "Banner-Verzögerung: {debounce:.1f} Sek.",
+        "btn_reset": "🔄 Kalibrierung zurücksetzen",
+        
+        "msg_cam_err_title": "Kamerafehler",
+        "msg_cam_err_access": "Zugriff auf die Webcam fehlgeschlagen.\nBitte überprüfen Sie Ihre Kameraverbindung.",
+        "msg_cam_err_switch": "Verbindung zur ausgewählten Kamera fehlgeschlagen.",
+        "msg_cal_title": "Kalibrierung",
+        "msg_cal_relaxed_ok": "Entspanntes Gesicht erfolgreich kalibriert!\nWert: {score:.3f}",
+        "msg_cal_frowned_ok": "Gerümpftes Gesicht erfolgreich kalibriert!\nWert: {score:.3f}",
+        "msg_reset_title": "Zurücksetzen",
+        "msg_reset_ok": "Kalibrierungsdaten wurden auf Standardwerte zurückgesetzt.",
+        
+        "overlay_title": "Nicht die Stirn runzeln!",
+        "overlay_subtitle": "Bitte entspannen Sie Ihre Stirn und Augenbrauen"
+    },
+    "FR": {
+        "window_title": "Frown Guard — Contrôle des Expressions",
+        "video_title": "Caméra de Contrôle d'Expression",
+        "status_header": "ÉTAT ACTUEL",
+        "status_searching": "Recherche du visage...",
+        "status_frowning": "FRONT FRONCÉ! 😡",
+        "status_warning": "Attention... ⏳",
+        "status_relaxed": "Tout va bien! 😊",
+        "status_no_face": "Aucun visage détecté 👤",
+        "status_no_cam": "Caméra non trouvée",
+        "metrics_label_fmt": "Métrique: {score:.3f} | Seuil: {threshold_score:.3f}\nFroncement: {frown_pct:.1f}% / Seuil: {threshold_pct:.1f}%",
+        
+        "calib_header": "CALIBRAGE PERSONNEL",
+        "calib_desc": "Cliquez sur 'Visage détendu' en regardant droit devant de manière détendue. Froncez ensuite les sourcils et cliquez sur 'Visage froncé'.",
+        "btn_relaxed": "😊 Visage détendu",
+        "btn_frowned": "😡 Visage froncé",
+        
+        "settings_header": "RÉGLAGE PRÉCIS",
+        "camera_label": "Caméra active:",
+        "sens_label_fmt": "Sensibilité: {sens:.0f}%",
+        "opacity_label_fmt": "Opacité de la bannière: {opacity:.0f}%",
+        "fps_label_fmt": "Fréquence d'actualisation: {fps:.0f} FPS",
+        "debounce_label_fmt": "Délai de la bannière: {debounce:.1f} sec",
+        "btn_reset": "🔄 Réinitialiser le calibrage",
+        
+        "msg_cam_err_title": "Erreur de caméra",
+        "msg_cam_err_access": "Impossible d'accéder à la webcam.\nVeuillez vérifier la connexion de votre caméra.",
+        "msg_cam_err_switch": "Impossible de se connecter à la caméra sélectionnée.",
+        "msg_cal_title": "Calibrage",
+        "msg_cal_relaxed_ok": "Visage détendu calibré avec succès!\nValeur: {score:.3f}",
+        "msg_cal_frowned_ok": "Visage froncé calibré avec succès!\nValeur: {score:.3f}",
+        "msg_reset_title": "Réinitialisation",
+        "msg_reset_ok": "Les données de calibrage ont été réinitialisées aux valeurs par défaut.",
+        
+        "overlay_title": "Ne froncez pas les sourcils!",
+        "overlay_subtitle": "Veuillez détendre votre front et vos sourcils"
     }
 }
