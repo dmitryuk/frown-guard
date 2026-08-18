@@ -78,6 +78,13 @@ The script compiles a native macOS App Bundle and packages it into a compressed 
 ```
 **Result:** An installable **`Frown_Guard.dmg`** disk image in the project root. Open it and drag Frown Guard to your *Applications* folder.
 
+### 🔌 Build for Windows (.exe Standalone Format)
+The Batch script automatically sets up the environment, downloads assets, creates a multi-resolution `.ico` icon, and builds a single standalone Windows executable with the command console hidden:
+```cmd
+build_win.bat
+```
+**Result:** A standalone **`Frown_Guard.exe`** inside the `dist\` folder in the project root. Run it on any Windows 10/11 machine.
+
 ---
 
 ## 📂 Project Structure
@@ -90,6 +97,7 @@ frown-guard/
 ├── README.md                # Comprehensive user manual (En)
 ├── build_appimage.sh        # Linux AppImage packaging script
 ├── build_mac.sh             # macOS DMG/App packaging script
+├── build_win.bat            # Windows standalone EXE packaging script
 ├── mac_info.plist           # Apple camera sandbox permissions plist
 ├── test_detector.py         # Mathematical unit test suite
 └── frown_guard/             # Source package folder
