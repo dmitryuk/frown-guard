@@ -108,4 +108,14 @@ frown-guard/
 ```
 
 ---
+
+## 📄 License
+
+This project is licensed under a custom **Non-Commercial License**. 
+
+**ANY USE OF THIS SOFTWARE FOR COMMERCIAL, CORPORATE, FOR-PROFIT, OR WORKPLACE ENVIRONMENT PURPOSES IS STRICTLY PROHIBITED.** 
+
+Please see the [LICENSE](LICENSE) file for the full legal text and conditions.
+
+---
 *Frown Guard — protect your muscle health and forget about wrinkles!*
