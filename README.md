@@ -1,103 +1,103 @@
-# Frown Guard — Контроль мимики и морщин на лбу
+# Frown Guard — Expression & Forehead Wrinkle Control
 
-**Frown Guard** — это интеллектуальное кроссплатформенное десктопное приложение на Python + MediaPipe, которое отслеживает мимику вашего лица в реальном времени через веб-камеру. 
+**Frown Guard** is an intelligent, cross-platform desktop application built with Python and MediaPipe that monitors your facial expressions in real-time via a webcam.
 
-Если вы непроизвольно хмуритесь, зажимаете брови или наморщиваете лоб (что приводит к образованию мимических морщин и головным болям напряжения), приложение мгновенно отобразит поверх всех окон стильный полупрозрачный предупреждающий баннер. Как только вы расслабите лицо, баннер мгновенно исчезнет.
-
----
-
-## 🌟 Ключевые особенности проекта
-
-* **🤖 Нейросетевой ИИ-трекинг (Вне конкуренции):**
-  Вместо устаревшего геометрического измерения расстояния по кадру, детектор использует глубокую нейросеть **MediaPipe FaceLandmarker** для считывания **коэффициентов блендшейпов (blendshape coefficients)**. Она оценивает исключительно активность лицевых мышц и **100% устойчива к наклонам, поворотам головы и изменению расстояния до камеры**. Ложные срабатывания при движении исключены!
-* **💆 Двойной контроль области лба:**
-  Приложение отслеживает как хмурое сведение бровей (`browDown`), так и непроизвольное приподнимание бровей вверх (`browOuterUp`), которое вызывает горизонтальные складки на лбу.
-* **🛡️ Полная потокобезопасность (Mutex Lock):**
-  Все обращения к видеокарте и камере защищены системным мьютексом (`threading.Lock`). Это предотвращает конфликты между графическим интерфейсом и фоновым потоком захвата, исключая любые зависания и критические ошибки ядра.
-* **🔌 Умная работа с несколькими камерами:**
-  Приложение автоматически сканирует систему, определяет настоящие физические названия ваших камер (например, *HP HD Camera* или *HD Pro Webcam C920*) и даёт возможность переключать их «на лету» без микрозависаний интерфейса. Программа автоматически отсеивает системные дубликаты каналов метаданных.
-* **⏱️ Фильтр дребезга (Debounce Delay):**
-  Слайдер задержки срабатывания позволяет отсеять секундные изменения мимики (моргание, чихание, зевок). Баннер появится только в том случае, если вы хмуритесь непрерывно дольше выбранного времени. Во время удержания статус плавно подсвечивается янтарным цветом (`Внимание... ⏳`).
-* **🔋 Энергосбережение (Adjustable FPS):**
-  Ползунок частоты опроса позволяет регулировать FPS камеры от 2 Гц до 30 Гц. На пониженных частотах (например, 5–10 кадров/сек) нагрузка на процессор падает в разы, что экономит батарею ноутбука, сохраняя точность контроля.
-* **🎨 Тонкая кастомизация:**
-  Регулируйте чувствительность детектора и прозрачность предупреждающего баннера под себя. Параметры автоматически сохраняются в `config.json`.
-* **📌 Удобство оверлея:**
-  Предупреждающий баннер всегда отображается поверх всех окон, **не забирает клавиатурный фокус** (не прерывает ваш ввод при наборе текста) и может быть легко перетащен мышкой в любое удобное место экрана.
+If you involuntarily scowl, furrow your eyebrows, or wrinkle your forehead (which leads to facial tension wrinkles and tension headaches), the app will instantly display a sleek, semi-transparent warning banner always-on-top of all windows. As soon as you relax your face, the banner immediately vanishes.
 
 ---
 
-## 🛠️ Быстрый запуск из исходного кода
+## 🌟 Key Features
 
-### Зависимости
-* Python 3.10+ (проверено вплоть до экспериментального Python 3.14)
-* Библиотеки: `opencv-python`, `mediapipe`, `pillow` (устанавливаются автоматически)
+* **🤖 Neural Network AI Tracking (State-of-the-Art):**
+  Instead of outdated geometric distance measurements on a 2D frame, the detector uses the deep learning **MediaPipe FaceLandmarker** model to extract **facial blendshape coefficients**. It evaluates absolute muscle activity and is **100% invariant to head rotation (yaw, pitch, roll) or distance changes**. False positives during head turns are completely eliminated!
+* **💆 Dual Forehead Muscle Monitoring:**
+  The app tracks both downward scowling/eyebrow furrowing (`browDown`) and involuntary upward eyebrow raising (`browOuterUp`), which is the primary cause of horizontal forehead lines.
+* **🛡️ Complete Thread Safety (Mutex Lock):**
+  All shared access to camera and GPU resources is synchronized with a system mutex (`threading.Lock`). This prevents conflicts between the Tkinter main GUI thread and the background capture loop, eliminating race conditions and segmentation faults.
+* **🔌 Dynamic Multi-Camera Support:**
+  The app automatically scans your system, queries real human-readable hardware names (such as *HP HD Camera* or *HD Pro Webcam C920*), and lets you switch between devices "on the fly" with zero UI freezing. It automatically filters out duplicate metadata-only system video nodes.
+* **⏱️ Anti-Flicker Debounce Filter:**
+  The adjustable response delay slider filters out momentary changes in expression (such as blinking, sneezing, or yawning). The banner will only trigger if you frown continuously for at least the chosen duration. While waiting, the status bar smoothly transitions to an amber `"Warning... ⏳"`.
+* **🔋 Battery-Saving Polling Rate (Adjustable FPS):**
+  A dedicated slider lets you adjust the camera polling rate from 2 Hz to 30 Hz. Lowering the rate (e.g., to 5–10 frames/sec) reduces CPU load by several times, dramatically saving laptop battery while keeping face tracking fully active.
+* **🎨 Precision Customization:**
+  Adjust both reaction sensitivity and banner transparency to your preference. All parameters are saved dynamically in `config.json`.
+* **📌 Seamless Overlay Experience:**
+  The warning banner is displayed always-on-top, **does not steal keyboard focus** (meaning it will never interrupt your typing in active documents), and can be easily dragged and repositioned anywhere on the screen with your mouse.
 
-### Инструкция по запуску:
-1. Склонируйте или откройте папку проекта.
-2. Создайте виртуальное окружение и запустите приложение:
+---
+
+## 🛠️ Quick Start from Source Code
+
+### Prerequisites
+* Python 3.10+ (tested up to Python 3.14)
+* Libraries: `opencv-python`, `mediapipe`, `pillow` (installed automatically)
+
+### Launch Steps:
+1. Clone or open the project folder.
+2. Initialize a virtual environment and run the application:
    ```bash
-   # Создание окружения
+   # Create environment
    python3 -m venv venv
    
-   # Активация и установка зависимостей
+   # Activate and install dependencies
    source venv/bin/activate
    pip install -r requirements.txt
    
-   # Запуск
+   # Launch
    python3 main.py
    ```
 
 ---
 
-## 📐 Как правильно пользоваться приложением (Калибровка)
+## 📐 How to Use (Calibration)
 
-Приложение адаптируется под уникальную анатомию любого лица:
-1. Запустите программу. Сядьте в удобную рабочую позу перед камерой.
-2. Полностью расслабьте лицо (разгладьте лоб, расслабьте брови), посмотрите прямо в камеру и нажмите зеленую кнопку **«😊 Спокойное лицо»**.
-3. Нахмурьтесь изо всей силы (или поднимите брови вверх, создавая складки на лбу) и, удерживая это выражение, нажмите красную кнопку **«😡 Нахмуренное лицо»**.
-4. Калибровка завершена! Система автоматически построит шкалу чувствительности вокруг ваших индивидуальных мышечных зажимов. Параметры сохранятся в файл конфигурации.
+The application adapts to the unique muscle structure of any face:
+1. Open the application and sit in a comfortable, natural working posture in front of your webcam.
+2. Completely relax your face (smoothing out your forehead and eyebrows), look directly at the camera, and click the green **"😊 Relaxed Face"** button.
+3. Frown as hard as you can (or raise your eyebrows, creating horizontal forehead wrinkles) and, while holding this expression, click the red **"😡 Frowned Face"** button.
+4. Calibration is complete! The system will dynamically build a custom sensitivity scale centered around your individual facial muscle range and save it.
 
 ---
 
-## 📦 Сборка в самостоятельные исполняемые файлы
+## 📦 Standalone Executable Compilation
 
-Вам больше не понадобятся установленный Python или терминал — приложение компилируется в один клик под вашу операционную систему.
+No need for Python or a terminal — compile the application into a single portable executable for your operating system.
 
-### 🐧 Сборка под Linux (Формат AppImage)
-Скрипт скомпилирует бинарный код через PyInstaller, нарисует иконку и упакует SquashFS-образ в монолитный переносимый файл:
+### 🐧 Build for Linux (AppImage Format)
+The script compiles the binary with PyInstaller, generates the icon, and compresses the SquashFS system into a single portable binary:
 ```bash
 ./build_appimage.sh
 ```
-**Результат:** Переносимый файл **`Frown_Guard-x86_64.AppImage`** в корневой папке. Запускается на любом дистрибутиве Linux двойным кликом.
+**Result:** A portable **`Frown_Guard-x86_64.AppImage`** executable in the project root. Run it on any Linux distribution with a double-click.
 
-### 🍏 Сборка под macOS (Формат .app и .dmg)
-Скрипт соберет нативный macOS App Bundle и упакует его в стандартный образ диска. В сборку автоматически интегрируется профиль разрешений безопасности `NSCameraUsageDescription` для защиты от сбоев авторизации веб-камеры:
+### 🍏 Build for macOS (.app & .dmg Formats)
+The script compiles a native macOS App Bundle and packages it into a compressed disk image. It automatically injects the `NSCameraUsageDescription` security authorization key to prevent camera permission crashes:
 ```bash
 ./build_mac.sh
 ```
-**Результат:** Файл дистрибутива **`Frown_Guard.dmg`** в корневой папке. При запуске открывается привычное окно установки перетаскиванием в *«Программы»*.
+**Result:** An installable **`Frown_Guard.dmg`** disk image in the project root. Open it and drag Frown Guard to your *Applications* folder.
 
 ---
 
-## 📂 Структура проекта
+## 📂 Project Structure
 
 ```
 frown-guard/
-├── main.py                  # Главная точка входа в приложение
-├── requirements.txt         # Зависимости Python
-├── GEMINI.md                # Техническое описание архитектуры проекта (En)
-├── README.md                # Полное руководство пользователя (Ru)
-├── build_appimage.sh        # Скрипт сборки AppImage под Linux
-├── build_mac.sh             # Скрипт сборки DMG/App под macOS
-├── mac_info.plist           # Профиль безопасности разрешений камеры Apple
-├── test_detector.py         # Юнит-тесты геометрического ядра детектора
-└── frown_guard/             # Исходный код пакета
-    ├── __init__.py          # Инициализатор пакета Python
-    ├── detector.py          # Анализ мимики, ИИ блендшейпы и калибровка
-    ├── overlay.py           # Плавающий оверлей предупреждения (всегда поверх)
-    └── app.py               # Главная панель управления (UI, потоки, мьютексы)
+├── main.py                  # Application entry point
+├── requirements.txt         # Python dependencies
+├── GEMINI.md                # Technical developer documentation (En)
+├── README.md                # Comprehensive user manual (En)
+├── build_appimage.sh        # Linux AppImage packaging script
+├── build_mac.sh             # macOS DMG/App packaging script
+├── mac_info.plist           # Apple camera sandbox permissions plist
+├── test_detector.py         # Mathematical unit test suite
+└── frown_guard/             # Source package folder
+    ├── __init__.py          # Python package initializer
+    ├── detector.py          # AI Blendshape analysis & calibration
+    ├── overlay.py           # Passive always-on-top warning banner
+    └── app.py               # Main control dashboard (GUI, threads, mutexes)
 ```
 
 ---
-*Frown Guard — берегите здоровье своей мимики и забудьте о морщинах!*
+*Frown Guard — protect your muscle health and forget about wrinkles!*
