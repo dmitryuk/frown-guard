@@ -13,20 +13,21 @@ echo.
 
 :: 1. Verify Python 3 presence in PATH
 python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Python not found in the PATH environment variable!
-    echo Please install Python 3 (be sure to check "Add Python to PATH" during installation).
-    if "%CI%"=="" pause
-    exit /b 1
-)
+if %errorlevel% equ 0 goto PYTHON_OK
+echo [ERROR] Python not found in the PATH environment variable!
+echo Please install Python 3 (be sure to check "Add Python to PATH" during installation).
+if "%CI%"=="" pause
+exit /b 1
+:PYTHON_OK
 
 :: 2. Create and configure virtual environment
-if not exist venv (
-    echo [1/5] Creating virtual environment venv...
-    python -m venv venv
-) else (
-    echo [1/5] Virtual environment venv already exists.
-)
+if exist venv goto VENV_EXISTS
+echo [1/5] Creating virtual environment venv...
+python -m venv venv
+goto VENV_END
+:VENV_EXISTS
+echo [1/5] Virtual environment venv already exists.
+:VENV_END
 
 echo [2/5] Installing dependencies and builder...
 call venv\Scripts\activate.bat
@@ -35,12 +36,13 @@ pip install -r requirements.txt
 pip install pyinstaller
 
 :: 3. Download MediaPipe model weights
-if not exist face_landmarker.task (
-    echo Downloading face_landmarker.task AI model...
-    python -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task', 'face_landmarker.task')"
-) else (
-    echo The face_landmarker.task AI model is already downloaded.
-)
+if exist face_landmarker.task goto MODEL_EXISTS
+echo Downloading face_landmarker.task AI model...
+python -c "import urllib.request; urllib.request.urlretrieve('https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task', 'face_landmarker.task')"
+goto MODEL_END
+:MODEL_EXISTS
+echo The face_landmarker.task AI model is already downloaded.
+:MODEL_END
 
 :: 4. Generate professional multi-size Windows icon (.ico)
 echo [3/5] Generating frown-guard.ico icon...
@@ -77,14 +79,15 @@ venv\Scripts\pyinstaller --noconfirm --clean --onefile --noconsole ^
     main.py
 
 echo [5/5] Verifying build results...
-if exist dist\Frown_Guard.exe (
-    echo.
-    echo =======================================================
-    echo  Packaging for Windows completed successfully!
-    echo  Executable file: dist\Frown_Guard.exe
-    echo =======================================================
-) else (
-    echo [ERROR] Packaging failed! Please check the compilation logs above.
-)
+if not exist dist\Frown_Guard.exe goto BUILD_ERROR
+echo.
+echo =======================================================
+echo  Packaging for Windows completed successfully!
+echo  Executable file: dist\Frown_Guard.exe
+echo =======================================================
+goto BUILD_END
+:BUILD_ERROR
+echo [ERROR] Packaging failed! Please check the compilation logs above.
+:BUILD_END
 
 if "%CI%"=="" pause

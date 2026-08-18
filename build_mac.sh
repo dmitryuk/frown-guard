@@ -65,21 +65,36 @@ print('Icon frown-guard.png successfully generated!')
 
 echo "=== [3/5] Compiling macOS App Bundle (.app) ==="
 # Run PyInstaller with the --windowed (or -w) flag to create a windowed .app bundle
-# The --info-plist flag embeds mac_info.plist with the NSCameraUsageDescription permission
 echo "Running PyInstaller..."
 venv/bin/pyinstaller --noconfirm --clean --windowed \
     --name "Frown Guard" \
     --add-data "face_landmarker.task:." \
     --hidden-import "PIL._tkinter_finder" \
     --collect-all "mediapipe" \
-    --info-plist "mac_info.plist" \
     --icon "frown-guard.png" \
     main.py
 
-echo "=== [4/5] Verifying built package structure ==="
+echo "=== [4/5] Injecting macOS Sandbox Camera Permissions ==="
 APP_PATH="dist/Frown Guard.app"
 if [ -d "$APP_PATH" ]; then
     echo "Successfully compiled package: $APP_PATH"
+    # Inject NSCameraUsageDescription dynamically into Info.plist using python's built-in plistlib
+    venv/bin/python3 -c "
+import plistlib
+plist_path = 'dist/Frown Guard.app/Contents/Info.plist'
+try:
+    with open(plist_path, 'rb') as f:
+        pl = plistlib.load(f)
+    pl['NSCameraUsageDescription'] = 'This application requires access to the webcam to monitor facial expressions and scowling in real-time.'
+    pl['CFBundleDisplayName'] = 'Frown Guard'
+    pl['CFBundleName'] = 'Frown Guard'
+    pl['CFBundleIdentifier'] = 'com.frown.guard'
+    with open(plist_path, 'wb') as f:
+        plistlib.dump(pl, f)
+    print('Info.plist camera permissions successfully injected!')
+except Exception as e:
+    print('Error injecting Info.plist:', e)
+"
 else
     echo "Error: Failed to find the built application in dist/"
     exit 1
