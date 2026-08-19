@@ -27,26 +27,15 @@ If you involuntarily scowl, furrow your eyebrows, or wrinkle your forehead (whic
 
 ---
 
-## 🛠️ Quick Start from Source Code
+## 💾 Installation & Downloads
 
-### Prerequisites
-* Python 3.10+ (tested up to Python 3.14)
-* Libraries: `opencv-python`, `mediapipe`, `pillow` (installed automatically)
+For a seamless and plug-and-play experience without needing Python, terminal commands, or dependency setup, simply download the pre-compiled standalone package for your operating system:
 
-### Launch Steps:
-1. Clone or open the project folder.
-2. Initialize a virtual environment and run the application:
-   ```bash
-   # Create environment
-   python3 -m venv venv
-   
-   # Activate and install dependencies
-   source venv/bin/activate
-   pip install -r requirements.txt
-   
-   # Launch
-   python3 main.py
-   ```
+1. Navigate to the official [Frown Guard Releases](https://github.com/dmitryuk/frawn-guard/releases) page.
+2. Download the release artifact corresponding to your platform:
+   - **Linux:** Download `Frown_Guard-x86_64.AppImage` (Grant execute permissions and run instantly).
+   - **macOS:** Download `Frown_Guard.dmg` (Open the disk image and drag Frown Guard to your Applications folder).
+   - **Windows:** Download `Frown_Guard.exe` (Run the standalone binary directly).
 
 ---
 
