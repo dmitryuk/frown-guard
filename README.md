@@ -1,4 +1,4 @@
-# Frown Guard — Expression & Forehead Wrinkle Control
+# Frown Guard — protect your muscle health and forget about wrinkles!
 
 **Frown Guard** is an intelligent, cross-platform desktop application built with Python and MediaPipe that monitors your facial expressions in real-time via a webcam.
 
@@ -46,5 +46,3 @@ This project is licensed under a custom **Non-Commercial License**.
 
 Please see the [LICENSE](LICENSE) file for the full legal text and conditions.
 
----
-*Frown Guard — protect your muscle health and forget about wrinkles!*
