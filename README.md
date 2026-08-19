@@ -1,6 +1,6 @@
 # Frown Guard — protect your muscle health and forget about wrinkles!
 
-**Frown Guard** is an intelligent, cross-platform desktop application built with Python and MediaPipe that monitors your facial expressions in real-time via a webcam.
+**Frown Guard** is an intelligent, cross-platform desktop application that monitors your facial expressions in real-time via a webcam.
 
 If you involuntarily scowl, furrow your eyebrows, or wrinkle your forehead (which leads to facial tension wrinkles and tension headaches), the app will instantly display a sleek, semi-transparent warning banner always-on-top of all windows. As soon as you relax your face, the banner immediately vanishes.
 
