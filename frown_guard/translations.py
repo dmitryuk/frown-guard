@@ -23,6 +23,7 @@ TRANSLATIONS = {
         "fps_label_fmt": "Частота опроса: {fps:.0f} кадр/сек",
         "debounce_label_fmt": "Задержка баннера: {debounce:.1f} сек",
         "btn_reset": "🔄 Сбросить калибровку",
+        "tracking_label": "Слежение за лицом",
         
         "msg_cam_err_title": "Ошибка камеры",
         "msg_cam_err_access": "Не удалось получить доступ к веб-камере.\nПроверьте подключение камеры.",
@@ -60,6 +61,7 @@ TRANSLATIONS = {
         "fps_label_fmt": "Polling Rate: {fps:.0f} FPS",
         "debounce_label_fmt": "Banner Delay: {debounce:.1f} sec",
         "btn_reset": "🔄 Reset Calibration",
+        "tracking_label": "Face Tracking",
         
         "msg_cam_err_title": "Camera Error",
         "msg_cam_err_access": "Could not access the webcam.\nPlease check your camera connection.",
@@ -97,6 +99,7 @@ TRANSLATIONS = {
         "fps_label_fmt": "Abfragerate: {fps:.0f} FPS",
         "debounce_label_fmt": "Banner-Verzögerung: {debounce:.1f} Sek.",
         "btn_reset": "🔄 Kalibrierung zurücksetzen",
+        "tracking_label": "Gesichtsverfolgung",
         
         "msg_cam_err_title": "Kamerafehler",
         "msg_cam_err_access": "Zugriff auf die Webcam fehlgeschlagen.\nBitte überprüfen Sie Ihre Kameraverbindung.",
@@ -134,6 +137,7 @@ TRANSLATIONS = {
         "fps_label_fmt": "Fréquence d'actualisation: {fps:.0f} FPS",
         "debounce_label_fmt": "Délai de la bannière: {debounce:.1f} sec",
         "btn_reset": "🔄 Réinitialiser le calibrage",
+        "tracking_label": "Suivi du visage",
         
         "msg_cam_err_title": "Erreur de caméra",
         "msg_cam_err_access": "Impossible d'accéder à la webcam.\nVeuillez vérifier la connexion de votre caméra.",

@@ -43,7 +43,7 @@ class FrownGuardApp:
         
         self.root.configure(bg=self.colors["bg"])
         
-        # Переменные конфигурации (загружаются из файла или устанавливаются по умолчанию)
+        # Configuration variables (loaded from config.json or fallback defaults)
         self.relaxed_score = 1.20
         self.frowned_score = 0.85
         self.sensitivity = 50.0
@@ -54,6 +54,8 @@ class FrownGuardApp:
         self.debounce_time = 0.5
         self.current_lang = "EN"
         self.translations = TRANSLATIONS
+        self.face_tracking_enabled = True
+        self.smooth_box = None
         
         self.load_config()
         
@@ -137,6 +139,7 @@ class FrownGuardApp:
                     self.poll_fps = config.get("poll_fps", 30.0)
                     self.debounce_time = config.get("debounce_time", 0.5)
                     self.current_lang = config.get("current_lang", "EN")
+                    self.face_tracking_enabled = config.get("face_tracking", True)
             except Exception as e:
                 print(f"Could not load config.json: {e}")
                 
@@ -151,7 +154,8 @@ class FrownGuardApp:
                 "camera_index": self.camera_index,
                 "poll_fps": self.poll_fps,
                 "debounce_time": self.debounce_time,
-                "current_lang": self.current_lang
+                "current_lang": self.current_lang,
+                "face_tracking": self.face_tracking_enabled
             }
             with open(self.CONFIG_FILE, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)
@@ -401,6 +405,22 @@ class FrownGuardApp:
         self.debounce_slider.set(self.debounce_time)
         self.debounce_slider.pack(fill=tk.X, padx=15, pady=(0, 10))
         
+        # Checkbox for Face Auto-Tracking (Zoom)
+        self.chk_tracking_var = tk.BooleanVar(value=self.face_tracking_enabled)
+        self.chk_tracking = tk.Checkbutton(
+            settings_card, 
+            text="Слежение за лицом", 
+            variable=self.chk_tracking_var,
+            bg=self.colors["card"], 
+            fg=self.colors["text"],
+            activebackground=self.colors["card"], 
+            activeforeground=self.colors["text"],
+            selectcolor=self.colors["bg"],
+            font=("Helvetica", 10),
+            command=self.toggle_tracking
+        )
+        self.chk_tracking.pack(anchor="w", padx=15, pady=(10, 5))
+        
         # Кнопка Сброса/Сохранения
         self.btn_reset = tk.Button(
             settings_card,
@@ -474,6 +494,13 @@ class FrownGuardApp:
         self.save_config()
         self.update_ui_text()
         
+    def toggle_tracking(self) -> None:
+        """Toggles face auto-zooming tracking mode."""
+        self.face_tracking_enabled = self.chk_tracking_var.get()
+        if not self.face_tracking_enabled:
+            self.smooth_box = None
+        self.save_config()
+        
     def update_ui_text(self) -> None:
         """Re-renders all interface labels and layouts according to the chosen language."""
         lang = self.current_lang
@@ -500,6 +527,7 @@ class FrownGuardApp:
         self.btn_cal_relaxed.configure(text=t["btn_relaxed"])
         self.btn_cal_frowned.configure(text=t["btn_frowned"])
         self.btn_reset.configure(text=t["btn_reset"])
+        self.chk_tracking.configure(text=t["tracking_label"])
         
         # Slider descriptions formatting
         self.sens_label.configure(text=t["sens_label_fmt"].format(sens=self.sensitivity))
@@ -715,12 +743,76 @@ class FrownGuardApp:
                 except Exception as draw_err:
                     print(f"Error rendering facial markers: {draw_err}")
             
+            # Apply face tracking zoom if enabled
+            if self.face_tracking_enabled and landmarks is not None:
+                try:
+                    xs = [lm.x for lm in landmarks]
+                    ys = [lm.y for lm in landmarks]
+                    x_min, x_max = min(xs), max(xs)
+                    y_min, y_max = min(ys), max(ys)
+                    
+                    box_w = x_max - x_min
+                    box_h = y_max - y_min
+                    
+                    # Add generous margin for a natural crop of head/shoulders
+                    pad_x = box_w * 0.45
+                    pad_y = box_h * 0.55
+                    
+                    target_x_min = max(0.0, x_min - pad_x)
+                    target_x_max = min(1.0, x_max + pad_x)
+                    target_y_min = max(0.0, y_min - pad_y)
+                    target_y_max = min(1.0, y_max + pad_y)
+                    
+                    # Force target box aspect ratio to match the camera frame aspect ratio
+                    target_w = target_x_max - target_x_min
+                    target_h = target_y_max - target_y_min
+                    frame_aspect = w / h
+                    box_aspect = (target_w * w) / (target_h * h)
+                    
+                    if box_aspect > frame_aspect:
+                        needed_h = (target_w * w) / (frame_aspect * h)
+                        center_y = (target_y_min + target_y_max) / 2.0
+                        target_y_min = max(0.0, center_y - needed_h / 2.0)
+                        target_y_max = min(1.0, center_y + needed_h / 2.0)
+                    else:
+                        needed_w = (target_h * h * frame_aspect) / w
+                        center_x = (target_x_min + target_x_max) / 2.0
+                        target_x_min = max(0.0, center_x - needed_w / 2.0)
+                        target_x_max = min(1.0, center_x + needed_w / 2.0)
+                        
+                    # Apply LERP (Linear Interpolation) to smooth out camera movements
+                    if self.smooth_box is None:
+                        self.smooth_box = (target_x_min, target_y_min, target_x_max, target_y_max)
+                    else:
+                        alpha = 0.08  # LERP factor (lower = smoother, higher = faster)
+                        s_x_min, s_y_min, s_x_max, s_y_max = self.smooth_box
+                        self.smooth_box = (
+                            s_x_min + alpha * (target_x_min - s_x_min),
+                            s_y_min + alpha * (target_y_min - s_y_min),
+                            s_x_max + alpha * (target_x_max - s_x_max),
+                            s_y_max + alpha * (target_y_max - s_y_max)
+                        )
+                        
+                    # Crop image to the smoothed tracking bounding box
+                    s_x_min, s_y_min, s_x_max, s_y_max = self.smooth_box
+                    px_min_x = max(0, min(w - 1, int(s_x_min * w)))
+                    px_max_x = max(px_min_x + 10, min(w, int(s_x_max * w)))
+                    px_min_y = max(0, min(h - 1, int(s_y_min * h)))
+                    px_max_y = max(px_min_y + 10, min(h, int(s_y_max * h)))
+                    
+                    frame_rgb = frame_rgb[px_min_y:px_max_y, px_min_x:px_max_x]
+                except Exception as track_err:
+                    print(f"Error executing face zoom tracking: {track_err}")
+            else:
+                self.smooth_box = None
+            
             # Scale and convert frame for Tkinter canvas consumption
             pil_img = None
             if self.show_video_preview:
+                curr_h, curr_w, _ = frame_rgb.shape
                 max_w, max_h = 540, 400
-                scale = min(max_w / w, max_h / h)
-                new_w, new_h = int(w * scale), int(h * scale)
+                scale = min(max_w / curr_w, max_h / curr_h)
+                new_w, new_h = int(curr_w * scale), int(curr_h * scale)
                 
                 frame_resized = cv2.resize(frame_rgb, (new_w, new_h))
                 pil_img = Image.fromarray(frame_resized)
