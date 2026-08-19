@@ -9,6 +9,7 @@ TRANSLATIONS = {
         "status_relaxed": "Все отлично! 😊",
         "status_no_face": "Лицо не обнаружено 👤",
         "status_no_cam": "Камера не найдена",
+        "status_paused": "Захват приостановлен",
         "metrics_label_fmt": "Метрика: {score:.3f} | Порог: {threshold_score:.3f}\nХмурость: {frown_pct:.1f}% / Порог: {threshold_pct:.1f}%",
         
         "calib_header": "ИНДИВИДУАЛЬНАЯ КАЛИБРОВКА",
@@ -24,6 +25,7 @@ TRANSLATIONS = {
         "debounce_label_fmt": "Задержка баннера: {debounce:.1f} сек",
         "btn_reset": "🔄 Сбросить калибровку",
         "tracking_label": "Слежение за лицом",
+        "camera_active_label": "Включить камеру",
         
         "msg_cam_err_title": "Ошибка камеры",
         "msg_cam_err_access": "Не удалось получить доступ к веб-камере.\nПроверьте подключение камеры.",
@@ -47,6 +49,7 @@ TRANSLATIONS = {
         "status_relaxed": "Looking great! 😊",
         "status_no_face": "No face detected 👤",
         "status_no_cam": "Camera not found",
+        "status_paused": "Capture Paused",
         "metrics_label_fmt": "Metric: {score:.3f} | Threshold: {threshold_score:.3f}\nFrown Level: {frown_pct:.1f}% / Threshold: {threshold_pct:.1f}%",
         
         "calib_header": "PERSONAL CALIBRATION",
@@ -62,6 +65,7 @@ TRANSLATIONS = {
         "debounce_label_fmt": "Banner Delay: {debounce:.1f} sec",
         "btn_reset": "🔄 Reset Calibration",
         "tracking_label": "Face Tracking",
+        "camera_active_label": "Enable Camera",
         
         "msg_cam_err_title": "Camera Error",
         "msg_cam_err_access": "Could not access the webcam.\nPlease check your camera connection.",
@@ -85,6 +89,7 @@ TRANSLATIONS = {
         "status_relaxed": "Sieht gut aus! 😊",
         "status_no_face": "Kein Gesicht erkannt 👤",
         "status_no_cam": "Kamera nicht gefunden",
+        "status_paused": "Erfassung pausiert",
         "metrics_label_fmt": "Metrik: {score:.3f} | Schwelle: {threshold_score:.3f}\nZornesfalte: {frown_pct:.1f}% / Schwelle: {threshold_pct:.1f}%",
         
         "calib_header": "INDIVIDUELLE KALIBRIERUNG",
@@ -100,6 +105,7 @@ TRANSLATIONS = {
         "debounce_label_fmt": "Banner-Verzögerung: {debounce:.1f} Sek.",
         "btn_reset": "🔄 Kalibrierung zurücksetzen",
         "tracking_label": "Gesichtsverfolgung",
+        "camera_active_label": "Kamera aktivieren",
         
         "msg_cam_err_title": "Kamerafehler",
         "msg_cam_err_access": "Zugriff auf die Webcam fehlgeschlagen.\nBitte überprüfen Sie Ihre Kameraverbindung.",
@@ -123,6 +129,7 @@ TRANSLATIONS = {
         "status_relaxed": "Tout va bien! 😊",
         "status_no_face": "Aucun visage détecté 👤",
         "status_no_cam": "Caméra non trouvée",
+        "status_paused": "Capture en pause",
         "metrics_label_fmt": "Métrique: {score:.3f} | Seuil: {threshold_score:.3f}\nFroncement: {frown_pct:.1f}% / Seuil: {threshold_pct:.1f}%",
         
         "calib_header": "CALIBRAGE PERSONNEL",
@@ -138,13 +145,14 @@ TRANSLATIONS = {
         "debounce_label_fmt": "Délai de la bannière: {debounce:.1f} sec",
         "btn_reset": "🔄 Réinitialiser le calibrage",
         "tracking_label": "Suivi du visage",
+        "camera_active_label": "Activer la caméra",
         
         "msg_cam_err_title": "Erreur de caméra",
         "msg_cam_err_access": "Impossible d'accéder à la webcam.\nVeuillez vérifier la connexion de votre caméra.",
         "msg_cam_err_switch": "Impossible de se connecter à la caméra sélectionnée.",
         "msg_cal_title": "Calibrage",
         "msg_cal_relaxed_ok": "Visage détendu calibré avec succès!\nValeur: {score:.3f}",
-        "msg_cal_frowned_ok": "Visage froncé calibré avec succès!\nValeur: {score:.3f}",
+        "msg_cal_frowned_ok": "Visage froncé calibré with succès!\nValeur: {score:.3f}",
         "msg_reset_title": "Réinitialisation",
         "msg_reset_ok": "Les données de calibrage ont été réinitialisées aux valeurs par défaut.",
         

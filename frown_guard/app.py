@@ -16,29 +16,29 @@ from frown_guard.translations import TRANSLATIONS
 
 class FrownGuardApp:
     """
-    Основное графическое приложение Frown Guard.
-    Предоставляет панель управления с темной темой, живым видеопотоком,
-    калибровкой, регулировкой чувствительности и управлением оверлеем.
+    The main Frown Guard GUI control center.
+    Provides a dark-themed dashboard featuring a live camera preview feed, 
+    individual user calibration buttons, sensitivity customization, and overlay management.
     """
     CONFIG_FILE = "config.json"
     
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("Frown Guard — Контроль мимики")
+        self.root.title("Frown Guard — Expression Control")
         self.root.geometry("946x774")
         self.root.resizable(True, True)
         
-        # Настройка цветовой палитры (современная темная тема)
+        # Configure color palette (modern dark Material theme)
         self.colors = {
-            "bg": "#121212",         # Основной фон
-            "card": "#1E1E1E",       # Фон панелей и карт
-            "text": "#E0E0E0",       # Основной текст
-            "text_muted": "#888888", # Заглушенный текст
-            "accent": "#00ADB5",     # Акцентный бирюзовый
+            "bg": "#121212",         # Main background
+            "card": "#1E1E1E",       # Card and panel background
+            "text": "#E0E0E0",       # Primary body text
+            "text_muted": "#888888", # Secondary muted text
+            "accent": "#00ADB5",     # Teal accent color
             "accent_hover": "#00F5FF",
-            "alert": "#FF5722",      # Оранжево-красный при хмурости
-            "success": "#4CAF50",    # Зеленый при спокойном лице
-            "border": "#2D2D2D"      # Разделители
+            "alert": "#FF5722",      # Orange-red alert color on frown
+            "success": "#4CAF50",    # Green color when relaxed
+            "border": "#2D2D2D"      # Structural grid dividers
         }
         
         self.root.configure(bg=self.colors["bg"])
@@ -56,6 +56,7 @@ class FrownGuardApp:
         self.translations = TRANSLATIONS
         self.face_tracking_enabled = True
         self.smooth_box = None
+        self.camera_active = True
         
         self.load_config()
         
@@ -140,6 +141,7 @@ class FrownGuardApp:
                     self.debounce_time = config.get("debounce_time", 0.5)
                     self.current_lang = config.get("current_lang", "EN")
                     self.face_tracking_enabled = config.get("face_tracking", True)
+                    self.camera_active = config.get("camera_active", True)
             except Exception as e:
                 print(f"Could not load config.json: {e}")
                 
@@ -155,7 +157,8 @@ class FrownGuardApp:
                 "poll_fps": self.poll_fps,
                 "debounce_time": self.debounce_time,
                 "current_lang": self.current_lang,
-                "face_tracking": self.face_tracking_enabled
+                "face_tracking": self.face_tracking_enabled,
+                "camera_active": self.camera_active
             }
             with open(self.CONFIG_FILE, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)
@@ -175,7 +178,7 @@ class FrownGuardApp:
         # Video title label
         self.video_title = tk.Label(
             self.video_frame, 
-            text="Камера контроля мимики", 
+            text="Expression Monitoring Camera", 
             font=("Helvetica", 12, "bold"),  
             bg=self.colors["card"], 
             fg=self.colors["text"]
@@ -212,22 +215,22 @@ class FrownGuardApp:
         self.lang_combobox.pack(side=tk.LEFT, padx=(0, 5))
         self.lang_combobox.bind("<<ComboboxSelected>>", self.on_lang_change)
         
-        # Правая часть — Панель управления и калибровки
+        # Right column — Control panel and calibration settings
         control_frame = tk.Frame(main_container, bg=self.colors["bg"], width=320)
         control_frame.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(10, 0))
         control_frame.pack_propagate(False)
         
-        # 1. Секция состояния (Карточка)
+        # 1. Status Section (Card)
         status_card = tk.Frame(control_frame, bg=self.colors["card"], highlightbackground=self.colors["border"], highlightthickness=1)
         status_card.pack(fill=tk.X, pady=(0, 15))
         
-        self.status_title_label = tk.Label(status_card, text="ТЕКУЩЕЕ СОСТОЯНИЕ", font=("Helvetica", 9, "bold"), bg=self.colors["card"], fg=self.colors["text_muted"])
+        self.status_title_label = tk.Label(status_card, text="CURRENT STATUS", font=("Helvetica", 9, "bold"), bg=self.colors["card"], fg=self.colors["text_muted"])
         self.status_title_label.pack(anchor="w", padx=15, pady=(10, 5))
         
-        self.status_text_label = tk.Label(status_card, text="Поиск лица...", font=("Helvetica", 16, "bold"), bg=self.colors["card"], fg=self.colors["accent"])
+        self.status_text_label = tk.Label(status_card, text="Searching face...", font=("Helvetica", 16, "bold"), bg=self.colors["card"], fg=self.colors["accent"])
         self.status_text_label.pack(anchor="w", padx=15, pady=(0, 10))
         
-        # Прогресс-бар уровня хмурости
+        # Frown level relative progress bar
         progress_bg = tk.Frame(status_card, bg=self.colors["bg"], height=16)
         progress_bg.pack(fill=tk.X, padx=15, pady=(0, 15))
         progress_bg.pack_propagate(False)
@@ -239,19 +242,19 @@ class FrownGuardApp:
         self.threshold_line = tk.Frame(progress_bg, bg=self.colors["text_muted"], width=2)
         self.threshold_line.place(relx=0.5, y=0, relheight=1.0)
         
-        self.metrics_label = tk.Label(status_card, text="Метрика: 0.00 | Порог: 0.00", font=("Courier", 10), bg=self.colors["card"], fg=self.colors["text_muted"])
+        self.metrics_label = tk.Label(status_card, text="Metric: 0.00 | Threshold: 0.00", font=("Courier", 10), bg=self.colors["card"], fg=self.colors["text_muted"])
         self.metrics_label.pack(anchor="w", padx=15, pady=(0, 10))
         
         # 2. Muscle Calibration Card
         calib_card = tk.Frame(control_frame, bg=self.colors["card"], highlightbackground=self.colors["border"], highlightthickness=1)
         calib_card.pack(fill=tk.X, pady=(0, 15))
         
-        self.calib_title_label = tk.Label(calib_card, text="ИНДИВИДУАЛЬНАЯ КАЛИБРОВКА", font=("Helvetica", 9, "bold"), bg=self.colors["card"], fg=self.colors["text_muted"])
+        self.calib_title_label = tk.Label(calib_card, text="PERSONAL CALIBRATION", font=("Helvetica", 9, "bold"), bg=self.colors["card"], fg=self.colors["text_muted"])
         self.calib_title_label.pack(anchor="w", padx=15, pady=(10, 5))
         
         self.calib_desc_label = tk.Label(
             calib_card, 
-            text="Нажмите 'Спокойное лицо' смотря прямо расслабленно. Затем нахмурьтесь и нажмите 'Нахмуренное лицо'.", 
+            text="Click 'Relaxed Face' while looking straight and relaxed. Then frown and click 'Frowned Face'.", 
             font=("Helvetica", 9), 
             bg=self.colors["card"], 
             fg=self.colors["text_muted"], 
@@ -263,7 +266,7 @@ class FrownGuardApp:
         # Calibration action buttons with flat modern styles
         self.btn_cal_relaxed = tk.Button(
             calib_card, 
-            text="😊 Спокойное лицо", 
+            text="😊 Relaxed Face", 
             font=("Helvetica", 11, "bold"),
             bg="#2E7D32", fg="white", 
             activebackground="#1B5E20", activeforeground="white",
@@ -275,7 +278,7 @@ class FrownGuardApp:
         
         self.btn_cal_frowned = tk.Button(
             calib_card, 
-            text="😡 Нахмуренное лицо", 
+            text="😡 Frowned Face", 
             font=("Helvetica", 11, "bold"),
             bg="#C62828", fg="white", 
             activebackground="#B71C1C", activeforeground="white",
@@ -289,11 +292,11 @@ class FrownGuardApp:
         settings_card = tk.Frame(control_frame, bg=self.colors["card"], highlightbackground=self.colors["border"], highlightthickness=1)
         settings_card.pack(fill=tk.BOTH, expand=True)
         
-        self.settings_title_label = tk.Label(settings_card, text="ТОНКАЯ НАСТРОЙКА", font=("Helvetica", 9, "bold"), bg=self.colors["card"], fg=self.colors["text_muted"])
+        self.settings_title_label = tk.Label(settings_card, text="FINE TUNING", font=("Helvetica", 9, "bold"), bg=self.colors["card"], fg=self.colors["text_muted"])
         self.settings_title_label.pack(anchor="w", padx=15, pady=(10, 5))
         
         # Camera source dropdown
-        self.camera_title_label = tk.Label(settings_card, text="Активная камера:", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
+        self.camera_title_label = tk.Label(settings_card, text="Active Camera:", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
         self.camera_title_label.pack(anchor="w", padx=15, pady=(5, 2))
         
         self.available_cams = self.scan_cameras()
@@ -313,7 +316,7 @@ class FrownGuardApp:
         if current_text:
             self.cam_combobox.set(current_text)
         else:
-            first_opt = cam_options[0] if cam_options else "Основная камера [ID: 0]"
+            first_opt = cam_options[0] if cam_options else "Default Camera [ID: 0]"
             self.cam_combobox.set(first_opt)
             try:
                 self.camera_index = int(first_opt.split("[ID: ")[-1].replace("]", ""))
@@ -324,7 +327,7 @@ class FrownGuardApp:
         self.cam_combobox.bind("<<ComboboxSelected>>", self.on_camera_change)
         
         # Sensitivity slider
-        self.sens_label = tk.Label(settings_card, text=f"Чувствительность: {self.sensitivity:.0f}%", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
+        self.sens_label = tk.Label(settings_card, text=f"Sensitivity: {self.sensitivity:.0f}%", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
         self.sens_label.pack(anchor="w", padx=15, pady=(5, 0))
         
         # Custom flat slider using Tkinter.Scale
@@ -345,7 +348,7 @@ class FrownGuardApp:
         self.sens_slider.pack(fill=tk.X, padx=15, pady=(0, 10))
         
         # Overlay opacity slider
-        self.opacity_label = tk.Label(settings_card, text=f"Прозрачность баннера: {self.overlay_opacity*100:.0f}%", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
+        self.opacity_label = tk.Label(settings_card, text=f"Banner Opacity: {self.overlay_opacity*100:.0f}%", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
         self.opacity_label.pack(anchor="w", padx=15, pady=(5, 0))
         
         self.opacity_slider = tk.Scale(
@@ -364,8 +367,8 @@ class FrownGuardApp:
         self.opacity_slider.set(self.overlay_opacity * 100.0)
         self.opacity_slider.pack(fill=tk.X, padx=15, pady=(0, 10))
         
-        # Слайдер Частоты опроса (кадров в секунду)
-        self.fps_label = tk.Label(settings_card, text=f"Частота опроса: {self.poll_fps:.0f} кадр/сек", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
+        # Polling rate slider (Frames Per Second)
+        self.fps_label = tk.Label(settings_card, text=f"Polling Rate: {self.poll_fps:.0f} FPS", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
         self.fps_label.pack(anchor="w", padx=15, pady=(5, 0))
         
         self.fps_slider = tk.Scale(
@@ -384,8 +387,8 @@ class FrownGuardApp:
         self.fps_slider.set(self.poll_fps)
         self.fps_slider.pack(fill=tk.X, padx=15, pady=(0, 10))
         
-        # Слайдер Задержки срабатывания (debounce)
-        self.debounce_label = tk.Label(settings_card, text=f"Задержка баннера: {self.debounce_time:.1f} сек", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
+        # Response delay debounce slider
+        self.debounce_label = tk.Label(settings_card, text=f"Banner Delay: {self.debounce_time:.1f} sec", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
         self.debounce_label.pack(anchor="w", padx=15, pady=(5, 0))
         
         self.debounce_slider = tk.Scale(
@@ -405,11 +408,27 @@ class FrownGuardApp:
         self.debounce_slider.set(self.debounce_time)
         self.debounce_slider.pack(fill=tk.X, padx=15, pady=(0, 10))
         
+        # Checkbox for Camera ON/OFF
+        self.chk_camera_on_var = tk.BooleanVar(value=self.camera_active)
+        self.chk_camera_on = tk.Checkbutton(
+            settings_card, 
+            text="Enable Camera", 
+            variable=self.chk_camera_on_var,
+            bg=self.colors["card"], 
+            fg=self.colors["text"],
+            activebackground=self.colors["card"], 
+            activeforeground=self.colors["text"],
+            selectcolor=self.colors["bg"],
+            font=("Helvetica", 10),
+            command=self.toggle_camera_active
+        )
+        self.chk_camera_on.pack(anchor="w", padx=15, pady=(10, 5))
+        
         # Checkbox for Face Auto-Tracking (Zoom)
         self.chk_tracking_var = tk.BooleanVar(value=self.face_tracking_enabled)
         self.chk_tracking = tk.Checkbutton(
             settings_card, 
-            text="Слежение за лицом", 
+            text="Face Tracking", 
             variable=self.chk_tracking_var,
             bg=self.colors["card"], 
             fg=self.colors["text"],
@@ -419,12 +438,12 @@ class FrownGuardApp:
             font=("Helvetica", 10),
             command=self.toggle_tracking
         )
-        self.chk_tracking.pack(anchor="w", padx=15, pady=(10, 5))
+        self.chk_tracking.pack(anchor="w", padx=15, pady=(5, 5))
         
-        # Кнопка Сброса/Сохранения
+        # Reset and save calibration buttons
         self.btn_reset = tk.Button(
             settings_card,
-            text="🔄 Сбросить калибровку",
+            text="🔄 Reset Calibration",
             font=("Helvetica", 10),
             bg="#424242", fg="white",
             activebackground="#212121", activeforeground="white",
@@ -434,19 +453,19 @@ class FrownGuardApp:
         )
         self.btn_reset.pack(side=tk.BOTTOM, fill=tk.X, padx=15, pady=(25, 20), ipady=6)
         
-        # Запускаем первичное обновление текстов UI под текущий язык
+        # Refresh all UI labels according to current localization
         self.update_ui_text()
 
     def request_calibrate_relaxed(self) -> None:
-        """Отправляет запрос на калибровку спокойного лица."""
+        """Sends a request to calibrate the relaxed face baseline."""
         self.calibrate_relaxed_requested = True
         
     def request_calibrate_frowned(self) -> None:
-        """Отправляет запрос на калибровку нахмуренного лица."""
+        """Sends a request to calibrate the frowned face baseline."""
         self.calibrate_frowned_requested = True
         
     def reset_calibration(self) -> None:
-        """Сбрасывает калибровочные значения к заводским."""
+        """Resets calibration coefficients back to factory defaults."""
         self.relaxed_score = 1.20
         self.frowned_score = 0.85
         self.detector.set_calibration(self.relaxed_score, self.frowned_score)
@@ -455,7 +474,7 @@ class FrownGuardApp:
         messagebox.showinfo(t["msg_reset_title"], t["msg_reset_ok"])
         
     def on_sensitivity_change(self, value: str) -> None:
-        """Вызывается при изменении чувствительности слайдером."""
+        """Callback triggered when the sensitivity slider is dragged."""
         val = float(value)
         self.sensitivity = val
         self.detector.sensitivity = val
@@ -501,6 +520,13 @@ class FrownGuardApp:
             self.smooth_box = None
         self.save_config()
         
+    def toggle_camera_active(self) -> None:
+        """Toggles camera active state."""
+        self.camera_active = self.chk_camera_on_var.get()
+        if not self.camera_active:
+            self.smooth_box = None
+        self.save_config()
+        
     def update_ui_text(self) -> None:
         """Re-renders all interface labels and layouts according to the chosen language."""
         lang = self.current_lang
@@ -528,6 +554,7 @@ class FrownGuardApp:
         self.btn_cal_frowned.configure(text=t["btn_frowned"])
         self.btn_reset.configure(text=t["btn_reset"])
         self.chk_tracking.configure(text=t["tracking_label"])
+        self.chk_camera_on.configure(text=t["camera_active_label"])
         
         # Slider descriptions formatting
         self.sens_label.configure(text=t["sens_label_fmt"].format(sens=self.sensitivity))
@@ -685,8 +712,39 @@ class FrownGuardApp:
         4. Injects frames into the Tkinter queue.
         """
         while self.is_running:
+            if not self.camera_active:
+                # Free camera resources immediately
+                with self.cap_lock:
+                    if self.cap is not None:
+                        self.cap.release()
+                        self.cap = None
+                
+                # Inject an empty frame and "paused" state metrics
+                metrics = {
+                    "combined_score": 1.0,
+                    "frown_level_pct": 0.0,
+                    "threshold_pct": 50.0,
+                    "is_frowning": False,
+                    "status": "paused"
+                }
+                try:
+                    if self.video_queue.full():
+                        try:
+                            self.video_queue.get_nowait()
+                        except queue.Empty:
+                            pass
+                    self.video_queue.put_nowait((None, metrics))
+                except Exception:
+                    pass
+                time.sleep(0.1)
+                continue
+
             with self.cap_lock:
-                if self.cap is None or not self.cap.isOpened():
+                # If camera is active but self.cap was released, re-open it!
+                if self.cap is None:
+                    self.cap = cv2.VideoCapture(self.camera_index)
+                
+                if not self.cap.isOpened():
                     cap_is_valid = False
                 else:
                     cap_is_valid = True
@@ -852,67 +910,89 @@ class FrownGuardApp:
             pil_img, metrics = latest_item
             
             # 1. Update webcam canvas display
-            if self.show_video_preview and pil_img is not None:
-                try:
-                    img_tk = ImageTk.PhotoImage(image=pil_img)
-                    self.video_label.configure(image=img_tk)
-                    self.video_label.image = img_tk  # Maintain reference to prevent garbage collection
-                except Exception as tk_img_err:
-                    print(f"Error rendering image on Tkinter canvas: {tk_img_err}")
+            if self.show_video_preview:
+                if pil_img is not None:
+                    try:
+                        img_tk = ImageTk.PhotoImage(image=pil_img)
+                        self.video_label.configure(image=img_tk)
+                        self.video_label.image = img_tk  # Maintain reference to prevent garbage collection
+                    except Exception as tk_img_err:
+                        print(f"Error rendering image on Tkinter canvas: {tk_img_err}")
+                else:
+                    # Clear image reference to show a blank dark screen when paused
+                    self.video_label.configure(image="")
+                    self.video_label.image = None
             
             # 2. Update status and metrics panel
             if metrics is not None:
-                frown_pct = metrics["frown_level_pct"]
-                threshold_pct = metrics["threshold_pct"]
-                is_frowning = metrics["is_frowning"]
-                score = metrics["combined_score"]
-                
-                # Buffer latest combined score for calibration use
-                self.last_combined_score = score
-                
-                # Update the horizontal progress bar relative width
-                self.frown_bar.place(relwidth=frown_pct / 100.0)
-                
-                # Position threshold line coordinate
-                self.threshold_line.place(relx=threshold_pct / 100.0)
-                
                 t = self.translations[self.current_lang]
-                
-                # Evaluate frowning debounce and trigger warn overlays
-                if is_frowning:
-                    if self.frowning_start_time is None:
-                        self.frowning_start_time = time.time()
-                        
-                    elapsed = time.time() - self.frowning_start_time
-                    
-                    if elapsed >= self.debounce_time:
-                        self.tracker_state = "frowning"
-                        self.status_text_label.configure(text=t["status_frowning"], fg=self.colors["alert"])
-                        self.frown_bar.configure(bg=self.colors["alert"])
-                        self.overlay.show_warning()
-                    else:
-                        self.tracker_state = "warning"
-                        self.status_text_label.configure(text=t["status_warning"], fg="#FFC107")  # Amber warning status
-                        self.frown_bar.configure(bg="#FFC107")
-                        self.overlay.hide_warning()
-                else:
-                    self.tracker_state = "relaxed"
+                if "status" in metrics and metrics["status"] == "paused":
+                    # Camera is deactivated: Reset all tracking parameters to zero and hide overlays
                     self.frowning_start_time = None
-                    self.status_text_label.configure(text=t["status_relaxed"], fg=self.colors["success"])
-                    self.frown_bar.configure(bg=self.colors["success"])
+                    self.tracker_state = "paused"
+                    self.frown_bar.place(relwidth=0.0)
+                    self.threshold_line.place(relx=0.5)
                     self.overlay.hide_warning()
                     
-                # Format metrics labels
-                fmt = t["metrics_label_fmt"]
-                threshold_score = self.detector.relaxed_score - (self.detector.relaxed_score - self.detector.frowned_score) * (threshold_pct / 100.0)
-                self.metrics_label.configure(
-                    text=fmt.format(
-                        score=score, 
-                        threshold_score=threshold_score, 
-                        frown_pct=frown_pct, 
-                        threshold_pct=threshold_pct
+                    self.status_text_label.configure(text=t["status_paused"], fg=self.colors["accent"])
+                    self.metrics_label.configure(
+                        text=t["metrics_label_fmt"].format(
+                            score=0.0, 
+                            threshold_score=0.0, 
+                            frown_pct=0.0, 
+                            threshold_pct=50.0
+                        )
                     )
-                )
+                else:
+                    frown_pct = metrics["frown_level_pct"]
+                    threshold_pct = metrics["threshold_pct"]
+                    is_frowning = metrics["is_frowning"]
+                    score = metrics["combined_score"]
+                    
+                    # Buffer latest combined score for calibration use
+                    self.last_combined_score = score
+                    
+                    # Update the horizontal progress bar relative width
+                    self.frown_bar.place(relwidth=frown_pct / 100.0)
+                    
+                    # Position threshold line coordinate
+                    self.threshold_line.place(relx=threshold_pct / 100.0)
+                    
+                    # Evaluate frowning debounce and trigger warn overlays
+                    if is_frowning:
+                        if self.frowning_start_time is None:
+                            self.frowning_start_time = time.time()
+                            
+                        elapsed = time.time() - self.frowning_start_time
+                        
+                        if elapsed >= self.debounce_time:
+                            self.tracker_state = "frowning"
+                            self.status_text_label.configure(text=t["status_frowning"], fg=self.colors["alert"])
+                            self.frown_bar.configure(bg=self.colors["alert"])
+                            self.overlay.show_warning()
+                        else:
+                            self.tracker_state = "warning"
+                            self.status_text_label.configure(text=t["status_warning"], fg="#FFC107")  # Amber warning status
+                            self.frown_bar.configure(bg="#FFC107")
+                            self.overlay.hide_warning()
+                    else:
+                        self.tracker_state = "relaxed"
+                        self.frowning_start_time = None
+                        self.status_text_label.configure(text=t["status_relaxed"], fg=self.colors["success"])
+                        self.frown_bar.configure(bg=self.colors["success"])
+                        self.overlay.hide_warning()
+                        
+                    # Format metrics labels
+                    fmt = t["metrics_label_fmt"]
+                    threshold_score = self.detector.relaxed_score - (self.detector.relaxed_score - self.detector.frowned_score) * (threshold_pct / 100.0)
+                    self.metrics_label.configure(
+                        text=fmt.format(
+                            score=score, 
+                            threshold_score=threshold_score, 
+                            frown_pct=frown_pct, 
+                            threshold_pct=threshold_pct
+                        )
+                    )
                 
                 # Perform calibration securely in main thread on request flags
                 if self.calibrate_relaxed_requested:
