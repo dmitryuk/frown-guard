@@ -4,6 +4,12 @@
 
 If you involuntarily scowl, furrow your eyebrows, or wrinkle your forehead (which leads to facial tension wrinkles and tension headaches), the app will instantly display a sleek, semi-transparent warning banner always-on-top of all windows. As soon as you relax your face, the banner immediately vanishes.
 
+### 📷 Visual Demonstration
+
+| 😊 Relaxed Face (No Warning) | 😡 Frowning Face (Active Overlay) |
+|:---:|:---:|
+| <img src="example_good.png" width="400" alt="Relaxed Face"/> | <img src="example_bad.png" width="400" alt="Frowning Face with Warning Banner"/> |
+
 ---
 
 ## 🌟 Key Features
