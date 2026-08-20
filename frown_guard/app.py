@@ -57,6 +57,8 @@ class FrownGuardApp:
         self.face_tracking_enabled = True
         self.smooth_box = None
         self.camera_active = True
+        self.audio_alerts_enabled = True
+        self.audio_alert_played = False
         
         self.load_config()
         
@@ -142,6 +144,7 @@ class FrownGuardApp:
                     self.current_lang = config.get("current_lang", "EN")
                     self.face_tracking_enabled = config.get("face_tracking", True)
                     self.camera_active = config.get("camera_active", True)
+                    self.audio_alerts_enabled = config.get("audio_alerts", True)
             except Exception as e:
                 print(f"Could not load config.json: {e}")
                 
@@ -158,7 +161,8 @@ class FrownGuardApp:
                 "debounce_time": self.debounce_time,
                 "current_lang": self.current_lang,
                 "face_tracking": self.face_tracking_enabled,
-                "camera_active": self.camera_active
+                "camera_active": self.camera_active,
+                "audio_alerts": self.audio_alerts_enabled
             }
             with open(self.CONFIG_FILE, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)
@@ -214,6 +218,54 @@ class FrownGuardApp:
         self.lang_combobox.set(self.current_lang)
         self.lang_combobox.pack(side=tk.LEFT, padx=(0, 5))
         self.lang_combobox.bind("<<ComboboxSelected>>", self.on_lang_change)
+        
+        # Checkbox for Camera ON/OFF next to language selection
+        self.chk_camera_on_var = tk.BooleanVar(value=self.camera_active)
+        self.chk_camera_on = tk.Checkbutton(
+            video_bottom_bar, 
+            text="Enable Camera", 
+            variable=self.chk_camera_on_var,
+            bg=self.colors["card"], 
+            fg=self.colors["text"],
+            activebackground=self.colors["card"], 
+            activeforeground=self.colors["text"],
+            selectcolor=self.colors["bg"],
+            font=("Helvetica", 9),
+            command=self.toggle_camera_active
+        )
+        self.chk_camera_on.pack(side=tk.LEFT, padx=(10, 5))
+        
+        # Checkbox for Face Auto-Tracking (Zoom)
+        self.chk_tracking_var = tk.BooleanVar(value=self.face_tracking_enabled)
+        self.chk_tracking = tk.Checkbutton(
+            video_bottom_bar, 
+            text="Face Tracking", 
+            variable=self.chk_tracking_var,
+            bg=self.colors["card"], 
+            fg=self.colors["text"],
+            activebackground=self.colors["card"], 
+            activeforeground=self.colors["text"],
+            selectcolor=self.colors["bg"],
+            font=("Helvetica", 9),
+            command=self.toggle_tracking
+        )
+        self.chk_tracking.pack(side=tk.LEFT, padx=(5, 5))
+        
+        # Checkbox for Gentle Audio Alerts
+        self.chk_audio_var = tk.BooleanVar(value=self.audio_alerts_enabled)
+        self.chk_audio = tk.Checkbutton(
+            video_bottom_bar, 
+            text="Enable Audio Alerts", 
+            variable=self.chk_audio_var,
+            bg=self.colors["card"], 
+            fg=self.colors["text"],
+            activebackground=self.colors["card"], 
+            activeforeground=self.colors["text"],
+            selectcolor=self.colors["bg"],
+            font=("Helvetica", 9),
+            command=self.toggle_audio_alerts
+        )
+        self.chk_audio.pack(side=tk.LEFT, padx=(5, 5))
         
         # Right column — Control panel and calibration settings
         control_frame = tk.Frame(main_container, bg=self.colors["bg"], width=320)
@@ -408,38 +460,6 @@ class FrownGuardApp:
         self.debounce_slider.set(self.debounce_time)
         self.debounce_slider.pack(fill=tk.X, padx=15, pady=(0, 10))
         
-        # Checkbox for Camera ON/OFF
-        self.chk_camera_on_var = tk.BooleanVar(value=self.camera_active)
-        self.chk_camera_on = tk.Checkbutton(
-            settings_card, 
-            text="Enable Camera", 
-            variable=self.chk_camera_on_var,
-            bg=self.colors["card"], 
-            fg=self.colors["text"],
-            activebackground=self.colors["card"], 
-            activeforeground=self.colors["text"],
-            selectcolor=self.colors["bg"],
-            font=("Helvetica", 10),
-            command=self.toggle_camera_active
-        )
-        self.chk_camera_on.pack(anchor="w", padx=15, pady=(10, 5))
-        
-        # Checkbox for Face Auto-Tracking (Zoom)
-        self.chk_tracking_var = tk.BooleanVar(value=self.face_tracking_enabled)
-        self.chk_tracking = tk.Checkbutton(
-            settings_card, 
-            text="Face Tracking", 
-            variable=self.chk_tracking_var,
-            bg=self.colors["card"], 
-            fg=self.colors["text"],
-            activebackground=self.colors["card"], 
-            activeforeground=self.colors["text"],
-            selectcolor=self.colors["bg"],
-            font=("Helvetica", 10),
-            command=self.toggle_tracking
-        )
-        self.chk_tracking.pack(anchor="w", padx=15, pady=(5, 5))
-        
         # Reset and save calibration buttons
         self.btn_reset = tk.Button(
             settings_card,
@@ -527,6 +547,45 @@ class FrownGuardApp:
             self.smooth_box = None
         self.save_config()
         
+    def toggle_audio_alerts(self) -> None:
+        """Toggles audio alerts active state."""
+        self.audio_alerts_enabled = self.chk_audio_var.get()
+        if not self.audio_alerts_enabled:
+            self.audio_alert_played = False
+        self.save_config()
+        
+    def play_zen_chime(self) -> None:
+        """Synthesizes and plays a gentle, calming 'zen chime' bell sound using sounddevice."""
+        try:
+            import sounddevice as sd
+            import numpy as np
+            
+            sample_rate = 44100
+            duration = 1.0  # seconds
+            t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
+            
+            # Synthesize E5 note chime (f0 = 659.25 Hz)
+            f0 = 659.25
+            fundamental = np.sin(2 * np.pi * f0 * t)
+            overtone1 = 0.5 * np.sin(2 * np.pi * (2 * f0) * t)
+            overtone2 = 0.25 * np.sin(2 * np.pi * (3 * f0) * t)
+            overtone3 = 0.15 * np.sin(2 * np.pi * (4.2 * f0) * t)
+            
+            combined = fundamental + overtone1 + overtone2 + overtone3
+            
+            # Apply smooth exponential decay envelope
+            envelope = np.exp(-4.5 * t)
+            bell_wave = combined * envelope
+            
+            # Normalize and set volume comfortably low (15%)
+            bell_wave = bell_wave / np.max(np.abs(bell_wave)) * 0.15
+            
+            # Play sound using PortAudio
+            sd.play(bell_wave, sample_rate)
+        except Exception as audio_err:
+            # Fall back silently if audio devices or PortAudio are unavailable
+            print(f"Silent fallback on zen chime audio playback: {audio_err}")
+        
     def update_ui_text(self) -> None:
         """Re-renders all interface labels and layouts according to the chosen language."""
         lang = self.current_lang
@@ -555,6 +614,7 @@ class FrownGuardApp:
         self.btn_reset.configure(text=t["btn_reset"])
         self.chk_tracking.configure(text=t["tracking_label"])
         self.chk_camera_on.configure(text=t["camera_active_label"])
+        self.chk_audio.configure(text=t["audio_alert_label"])
         
         # Slider descriptions formatting
         self.sens_label.configure(text=t["sens_label_fmt"].format(sens=self.sensitivity))
@@ -970,6 +1030,11 @@ class FrownGuardApp:
                             self.status_text_label.configure(text=t["status_frowning"], fg=self.colors["alert"])
                             self.frown_bar.configure(bg=self.colors["alert"])
                             self.overlay.show_warning()
+                            
+                            # Trigger gentle zen chime sound alert exactly once
+                            if self.audio_alerts_enabled and not self.audio_alert_played:
+                                self.audio_alert_played = True
+                                threading.Thread(target=self.play_zen_chime, daemon=True).start()
                         else:
                             self.tracker_state = "warning"
                             self.status_text_label.configure(text=t["status_warning"], fg="#FFC107")  # Amber warning status
@@ -978,6 +1043,7 @@ class FrownGuardApp:
                     else:
                         self.tracker_state = "relaxed"
                         self.frowning_start_time = None
+                        self.audio_alert_played = False
                         self.status_text_label.configure(text=t["status_relaxed"], fg=self.colors["success"])
                         self.frown_bar.configure(bg=self.colors["success"])
                         self.overlay.hide_warning()

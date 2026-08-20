@@ -26,6 +26,7 @@ TRANSLATIONS = {
         "btn_reset": "🔄 Сбросить калибровку",
         "tracking_label": "Слежение за лицом",
         "camera_active_label": "Включить камеру",
+        "audio_alert_label": "Звуковое предупреждение",
         
         "msg_cam_err_title": "Ошибка камеры",
         "msg_cam_err_access": "Не удалось получить доступ к веб-камере.\nПроверьте подключение камеры.",
@@ -66,6 +67,7 @@ TRANSLATIONS = {
         "btn_reset": "🔄 Reset Calibration",
         "tracking_label": "Face Tracking",
         "camera_active_label": "Enable Camera",
+        "audio_alert_label": "Enable Audio Alerts",
         
         "msg_cam_err_title": "Camera Error",
         "msg_cam_err_access": "Could not access the webcam.\nPlease check your camera connection.",
@@ -106,13 +108,14 @@ TRANSLATIONS = {
         "btn_reset": "🔄 Kalibrierung zurücksetzen",
         "tracking_label": "Gesichtsverfolgung",
         "camera_active_label": "Kamera aktivieren",
+        "audio_alert_label": "Tonaler Alarm",
         
         "msg_cam_err_title": "Kamerafehler",
         "msg_cam_err_access": "Zugriff auf die Webcam fehlgeschlagen.\nBitte überprüfen Sie Ihre Kameraverbindung.",
         "msg_cam_err_switch": "Verbindung zur ausgewählten Kamera fehlgeschlagen.",
         "msg_cal_title": "Kalibrierung",
-        "msg_cal_relaxed_ok": "Entspanntes Gesicht erfolgreich kalibriert!\nWert: {score:.3f}",
-        "msg_cal_frowned_ok": "Gerümpftes Gesicht erfolgreich kalibriert!\nWert: {score:.3f}",
+        "msg_cal_relaxed_ok": "Entspanntes Gesicht успешно откалибровано!\nWert: {score:.3f}",
+        "msg_cal_frowned_ok": "Gerümpftes Gesicht успешно откалибровано!\nWert: {score:.3f}",
         "msg_reset_title": "Zurücksetzen",
         "msg_reset_ok": "Kalibrierungsdaten wurden auf Standardwerte zurückgesetzt.",
         
@@ -146,13 +149,14 @@ TRANSLATIONS = {
         "btn_reset": "🔄 Réinitialiser le calibrage",
         "tracking_label": "Suivi du visage",
         "camera_active_label": "Activer la caméra",
+        "audio_alert_label": "Alerte sonore",
         
         "msg_cam_err_title": "Erreur de caméra",
         "msg_cam_err_access": "Impossible d'accéder à la webcam.\nVeuillez vérifier la connexion de votre caméra.",
         "msg_cam_err_switch": "Impossible de se connecter à la caméra sélectionnée.",
         "msg_cal_title": "Calibrage",
         "msg_cal_relaxed_ok": "Visage détendu calibré avec succès!\nValeur: {score:.3f}",
-        "msg_cal_frowned_ok": "Visage froncé calibré with succès!\nValeur: {score:.3f}",
+        "msg_cal_frowned_ok": "Visage froncé calibré avec succès!\nValeur: {score:.3f}",
         "msg_reset_title": "Réinitialisation",
         "msg_reset_ok": "Les données de calibrage ont été réinitialisées aux valeurs par défaut.",
         
