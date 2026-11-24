@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import queue
 import threading
@@ -13,6 +14,7 @@ from PIL import Image, ImageTk
 from frown_guard.detector import FaceFrownDetector
 from frown_guard.overlay import FrownWarningOverlay
 from frown_guard.translations import TRANSLATIONS
+from frown_guard.paths import config_file
 
 class FrownGuardApp:
     """
@@ -20,10 +22,9 @@ class FrownGuardApp:
     Provides a dark-themed dashboard featuring a live camera preview feed, 
     individual user calibration buttons, sensitivity customization, and overlay management.
     """
-    CONFIG_FILE = "config.json"
-    
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
+        self.CONFIG_FILE = config_file()
         self.root.title("Frown Guard — Expression Control")
         self.root.geometry("946x774")
         self.root.resizable(True, True)
