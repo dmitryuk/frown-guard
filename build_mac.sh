@@ -24,11 +24,28 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# Create a virtual environment if it does not exist
+# Create a virtual environment if it does not exist.
+# Prefer a Python 3.11 that bundles Tk 8.6 (as in the original releases): newer
+# standalone builds ship Tk 9.0, which crashed in this app on macOS.
 if [ ! -d "venv" ]; then
     echo "Creating virtual environment venv..."
-    python3 -m venv venv
+    if command -v uv &> /dev/null; then
+        uv venv --seed --python 3.11.13 venv
+    else
+        python3 -m venv venv
+    fi
 fi
+
+# Standalone Python builds cannot locate their Tcl/Tk scripts from inside a venv;
+# point at the base installation so both the app and PyInstaller's Tk hook find them.
+BASE_PREFIX="$(venv/bin/python3 -c 'import sys; print(sys.base_prefix)')"
+for v in tcl8.6:TCL_LIBRARY tk8.6:TK_LIBRARY; do
+    dir="$BASE_PREFIX/lib/${v%%:*}"; var="${v##*:}"
+    if [ -z "${!var}" ] && [ -f "$dir/init.tcl" -o -f "$dir/tk.tcl" ]; then
+        export "$var=$dir"
+    fi
+done
+echo "Tk version: $(venv/bin/python3 -c 'import tkinter; print(tkinter.Tcl().call("info", "patchlevel"))')"
 
 # Activate environment and install main dependencies
 echo "Upgrading pip and installing dependencies..."
@@ -68,6 +85,10 @@ try:
     pl['CFBundleDisplayName'] = 'Frown Guard'
     pl['CFBundleName'] = 'Frown Guard'
     pl['CFBundleIdentifier'] = 'com.frown.guard'
+    # Start as a menu bar (agent) app; the app shows a Dock icon itself while its window is open
+    pl['LSUIElement'] = True
+    # Never throttle the background monitoring loop
+    pl['LSAppNapIsDisabled'] = True
     with open(plist_path, 'wb') as f:
         plistlib.dump(pl, f)
     print('Info.plist camera permissions successfully injected!')
