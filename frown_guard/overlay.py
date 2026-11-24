@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 from typing import Optional
 
@@ -89,6 +90,38 @@ class FrownWarningOverlay(tk.Toplevel):
         # Initially hide the window
         self.is_visible = False
         self.withdraw()
+
+        # macOS: Tk's deiconify() activates the app, stealing keyboard focus from
+        # whatever the user is typing in. Instead, map the window in Tk once and
+        # then show/hide the native NSWindow without activating the app.
+        self._ns_window = None
+        if sys.platform == "darwin":
+            self._setup_native_macos()
+
+    _NATIVE_TITLE = "Frown Guard Warning"
+
+    def _setup_native_macos(self) -> None:
+        try:
+            from AppKit import NSApplication
+        except Exception:
+            return
+        self.title(self._NATIVE_TITLE)
+        # Map once in Tk so it renders its content, then hide it natively
+        self.deiconify()
+        self.update_idletasks()
+        for win in NSApplication.sharedApplication().windows():
+            if win.title() == self._NATIVE_TITLE:
+                self._ns_window = win
+                break
+        if self._ns_window is None:
+            self.withdraw()
+            return
+        win = self._ns_window
+        win.setLevel_(25)  # NSStatusWindowLevel: above normal and floating windows
+        # canJoinAllSpaces | stationary | ignoresCycle | fullScreenAuxiliary
+        win.setCollectionBehavior_((1 << 0) | (1 << 4) | (1 << 6) | (1 << 8))
+        win.setHidesOnDeactivate_(False)
+        win.orderOut_(None)
         
     def start_drag(self, event: tk.Event) -> None:
         """Remembers initial click coordinates for moving the window."""
@@ -110,14 +143,21 @@ class FrownWarningOverlay(tk.Toplevel):
     def show_warning(self) -> None:
         """Instantly displays the notification on the screen."""
         if not self.is_visible:
-            self.deiconify()
-            self.attributes("-topmost", True)  # Force on top again
+            if self._ns_window is not None:
+                # Shows the window without activating the app (no focus change)
+                self._ns_window.orderFrontRegardless()
+            else:
+                self.deiconify()
+                self.attributes("-topmost", True)  # Force on top again
             self.is_visible = True
-            
+
     def hide_warning(self) -> None:
         """Hides the notification from the screen."""
         if self.is_visible:
-            self.withdraw()
+            if self._ns_window is not None:
+                self._ns_window.orderOut_(None)
+            else:
+                self.withdraw()
             self.is_visible = False
             
     def set_opacity(self, alpha: float) -> None:

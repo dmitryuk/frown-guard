@@ -2,3 +2,4 @@ opencv-python>=4.5.0
 mediapipe>=1.2.3
 numpy>=1.20.0
 Pillow>=9.0.0
+pyobjc-framework-Cocoa>=10.0; sys_platform == "darwin"
