@@ -474,6 +474,12 @@ class FrownGuardApp:
         )
         self.btn_reset.pack(side=tk.BOTTOM, fill=tk.X, padx=15, pady=(25, 20), ipady=6)
         
+        # macOS draws tk.Button natively (light grey) and ignores bg, but still
+        # applies fg, which left white-on-grey labels unreadable. Use dark text there.
+        if sys.platform == "darwin":
+            for btn in (self.btn_cal_relaxed, self.btn_cal_frowned, self.btn_reset):
+                btn.configure(fg="black", activeforeground="black")
+
         # Refresh all UI labels according to current localization
         self.update_ui_text()
 
