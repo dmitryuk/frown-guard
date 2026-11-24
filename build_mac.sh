@@ -79,6 +79,12 @@ else
     exit 1
 fi
 
+# Editing Info.plist invalidates PyInstaller's ad-hoc signature, which makes Gatekeeper
+# report the downloaded app as "damaged". Re-sign after all bundle modifications.
+echo "Re-signing app bundle (ad-hoc)..."
+codesign --force --sign - "$APP_PATH"
+codesign --verify --deep --strict "$APP_PATH"
+
 echo "=== [4/4] Creating Apple Disk Image installer (.dmg) ==="
 # Create a standard .dmg file using the built-in hdiutil utility
 echo "Generating dist/Frown_Guard.dmg..."
