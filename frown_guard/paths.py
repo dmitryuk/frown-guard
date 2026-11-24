@@ -18,6 +18,11 @@ def config_dir() -> str:
     return base
 
 
+def show_request_file() -> str:
+    """Created by a second launch to ask the running instance to show its window."""
+    return os.path.join(config_dir(), "show.request")
+
+
 def config_file() -> str:
     """
     Absolute path of config.json. The original app used a path relative to the

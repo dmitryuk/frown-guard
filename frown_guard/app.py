@@ -14,7 +14,16 @@ from PIL import Image, ImageTk
 from frown_guard.detector import FaceFrownDetector
 from frown_guard.overlay import FrownWarningOverlay
 from frown_guard.translations import TRANSLATIONS
-from frown_guard.paths import config_file
+from frown_guard.paths import config_file, show_request_file
+from frown_guard import login_item
+from frown_guard import sounds
+
+# Background polling: when the dashboard is hidden there is nothing to redraw,
+# so detection runs at a lower rate and the Tk poll loop ticks less often.
+HIDDEN_MAX_FPS = 10.0
+HIDDEN_POLL_MS = 100
+# Re-open the camera after this many seconds of failed reads (e.g. after sleep/wake).
+CAMERA_STALL_SECONDS = 3.0
 
 class FrownGuardApp:
     """
@@ -22,11 +31,20 @@ class FrownGuardApp:
     Provides a dark-themed dashboard featuring a live camera preview feed, 
     individual user calibration buttons, sensitivity customization, and overlay management.
     """
-    def __init__(self, root: tk.Tk) -> None:
+    DEFAULT_GEOMETRY = "946x774"
+
+    def __init__(self, root: tk.Tk, start_hidden: bool = False) -> None:
         self.root = root
         self.CONFIG_FILE = config_file()
+        # True while the dashboard window is on screen (read by the capture thread)
+        self.window_visible = not start_hidden
+        # A window that starts withdrawn loses its requested size in Tk on macOS;
+        # re-apply it the first time the window is actually shown.
+        self._shown_once = not start_hidden
+        self.menubar = None
+        self._menubar_state: Optional[tuple] = None
         self.root.title("Frown Guard — Expression Control")
-        self.root.geometry("946x774")
+        self.root.geometry(self.DEFAULT_GEOMETRY)
         self.root.resizable(True, True)
         
         # Configure color palette (modern dark Material theme)
@@ -60,6 +78,9 @@ class FrownGuardApp:
         self.camera_active = True
         self.audio_alerts_enabled = True
         self.audio_alert_played = False
+        self.alert_sound = sounds.CHIME   # sound id: "chime" or a macOS system sound name
+        self.alert_volume = 50.0          # percent
+        self.alert_player = sounds.AlertPlayer()
         
         self.load_config()
         
@@ -126,9 +147,122 @@ class FrownGuardApp:
         # Start polling the processed frames queue
         self.poll_queue()
         
-        # Securely release resources upon window close
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        
+        # macOS: live in the menu bar. Closing the window hides it; Quit exits.
+        if sys.platform == "darwin":
+            self.setup_menubar()
+
+        if self.menubar is not None:
+            self.root.protocol("WM_DELETE_WINDOW", self.hide_window)
+            # ⌘Q / app menu Quit, and re-opening the app from Finder/Spotlight/Dock
+            self.root.createcommand("::tk::mac::Quit", self.on_closing)
+            self.root.createcommand("::tk::mac::ReopenApplication", self.show_window)
+            if start_hidden:
+                self.hide_window()
+            else:
+                self.menubar.show_dock_icon(True)
+        else:
+            # No menu bar available: closing the window quits (original behaviour)
+            self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+            if start_hidden:
+                self.root.iconify()
+        # A second launch of the app asks this instance to show its window (see main.py)
+        self.check_show_request()
+
+    def setup_menubar(self) -> None:
+        """Creates the macOS status item; leaves self.menubar as None if PyObjC is unavailable."""
+        try:
+            from frown_guard import macos_menubar
+        except Exception as e:
+            print(f"Menu bar integration unavailable: {e}")
+            return
+        self.menubar = macos_menubar.create(login_supported=login_item.is_supported())
+        if self.menubar is not None:
+            self.refresh_menubar_labels()
+
+    def refresh_menubar_labels(self) -> None:
+        if self.menubar is None:
+            return
+        t = self.translations[self.current_lang]
+        self.menubar.set_labels(t["menu_show"], t["menu_quit"], t["menu_login"])
+        self.menubar.set_monitoring(self.camera_active, t["menu_pause"], t["menu_resume"])
+        self.menubar.set_login_checked(login_item.is_enabled())
+        self._menubar_state = None  # force status line re-render in the new language
+
+    def sync_menubar_state(self) -> None:
+        """Mirrors tracker_state into the menu bar icon/status line (only on change)."""
+        if self.menubar is None:
+            return
+        key = (self.tracker_state, self.current_lang)
+        if key == self._menubar_state:
+            return
+        self._menubar_state = key
+        t = self.translations[self.current_lang]
+        self.menubar.set_state(self.tracker_state, t.get(f"status_{self.tracker_state}", ""))
+
+    def handle_menubar_commands(self) -> None:
+        """Runs menu actions queued by the status item (always on the Tk thread)."""
+        if self.menubar is None:
+            return
+        for cmd in self.menubar.drain():
+            if cmd == "show":
+                self.show_window()
+            elif cmd == "toggle_monitoring":
+                self.chk_camera_on_var.set(not self.camera_active)
+                self.toggle_camera_active()
+            elif cmd == "toggle_login":
+                try:
+                    if login_item.is_enabled():
+                        login_item.disable()
+                    else:
+                        login_item.enable()
+                except Exception as e:
+                    print(f"Could not change Launch at Login: {e}")
+                self.menubar.set_login_checked(login_item.is_enabled())
+            elif cmd == "quit":
+                self.on_closing()
+                return
+
+    def check_show_request(self) -> None:
+        """Shows the window when another launch of the app asked for it (see main.py)."""
+        if not self.is_running:
+            return
+        path = show_request_file()
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+            self.show_window()
+        self.root.after(500, self.check_show_request)
+
+    def show_window(self) -> None:
+        if self.menubar is not None:
+            self.menubar.show_dock_icon(True)
+        self.root.deiconify()
+        if not self._shown_once:
+            self._shown_once = True
+            self.root.geometry(self.DEFAULT_GEOMETRY)
+        self.root.lift()
+        # Briefly float above other apps' windows in case macOS declines to
+        # activate us (e.g. when the request came from a second launch)
+        self.root.attributes("-topmost", True)
+        self.root.after(600, lambda: self.root.attributes("-topmost", False))
+        self.window_visible = True
+
+    def hide_window(self) -> None:
+        self.root.withdraw()
+        self.window_visible = False
+        if self.menubar is not None:
+            self.menubar.show_dock_icon(False)
+
+    def background_throttled(self) -> bool:
+        """Hidden in the macOS menu bar: run detection and the poll loop at a lower rate."""
+        return self.menubar is not None and not self.window_visible
+
+    def preview_needed(self) -> bool:
+        """Whether to annotate/resize frames for the dashboard preview."""
+        return self.show_video_preview and self.window_visible
+
     def load_config(self) -> None:
         """Loads calibration parameters from JSON configuration file."""
         if os.path.exists(self.CONFIG_FILE):
@@ -146,6 +280,8 @@ class FrownGuardApp:
                     self.face_tracking_enabled = config.get("face_tracking", True)
                     self.camera_active = config.get("camera_active", True)
                     self.audio_alerts_enabled = config.get("audio_alerts", True)
+                    self.alert_sound = config.get("alert_sound", sounds.CHIME)
+                    self.alert_volume = config.get("alert_volume", 50.0)
             except Exception as e:
                 print(f"Could not load config.json: {e}")
                 
@@ -163,7 +299,9 @@ class FrownGuardApp:
                 "current_lang": self.current_lang,
                 "face_tracking": self.face_tracking_enabled,
                 "camera_active": self.camera_active,
-                "audio_alerts": self.audio_alerts_enabled
+                "audio_alerts": self.audio_alerts_enabled,
+                "alert_sound": self.alert_sound,
+                "alert_volume": self.alert_volume
             }
             with open(self.CONFIG_FILE, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)
@@ -460,6 +598,54 @@ class FrownGuardApp:
         )
         self.debounce_slider.set(self.debounce_time)
         self.debounce_slider.pack(fill=tk.X, padx=15, pady=(0, 10))
+
+        # Alert sound picker with preview button
+        self.sound_title_label = tk.Label(settings_card, text="Alert Sound:", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
+        self.sound_title_label.pack(anchor="w", padx=15, pady=(5, 2))
+
+        sound_row = tk.Frame(settings_card, bg=self.colors["card"])
+        sound_row.pack(fill=tk.X, padx=15, pady=(0, 10))
+
+        self.sound_ids = sounds.available_sounds()
+        if self.alert_sound not in self.sound_ids:
+            self.alert_sound = sounds.CHIME
+        self.sound_combobox = ttk.Combobox(sound_row, state="readonly", font=("Helvetica", 10))
+        self.sound_combobox.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.sound_combobox.bind("<<ComboboxSelected>>", self.on_sound_change)
+
+        self.btn_preview_sound = tk.Button(
+            sound_row,
+            text="▶",
+            font=("Helvetica", 10),
+            bg="#424242", fg="white",
+            activebackground="#212121", activeforeground="white",
+            relief=tk.FLAT, bd=0, cursor="hand2",
+            width=3,
+            command=self.preview_alert_sound
+        )
+        self.btn_preview_sound.pack(side=tk.LEFT, padx=(8, 0), ipady=3)
+
+        # Alert volume slider
+        self.volume_label = tk.Label(settings_card, text=f"Alert Volume: {self.alert_volume:.0f}%", font=("Helvetica", 10), bg=self.colors["card"], fg=self.colors["text"])
+        self.volume_label.pack(anchor="w", padx=15, pady=(5, 0))
+
+        self.volume_slider = tk.Scale(
+            settings_card, 
+            from_=5.0, to=100.0, 
+            orient=tk.HORIZONTAL, 
+            bg=self.colors["card"], 
+            fg=self.colors["text"],
+            troughcolor=self.colors["bg"], 
+            activebackground=self.colors["accent"],
+            highlightthickness=0, 
+            bd=0, 
+            showvalue=False,
+            command=self.on_volume_change
+        )
+        self.volume_slider.set(self.alert_volume)
+        self.volume_slider.pack(fill=tk.X, padx=15, pady=(0, 10))
+        # Preview once the slider is released, not on every step while dragging
+        self.volume_slider.bind("<ButtonRelease-1>", lambda e: self.preview_alert_sound())
         
         # Reset and save calibration buttons
         self.btn_reset = tk.Button(
@@ -477,7 +663,7 @@ class FrownGuardApp:
         # macOS draws tk.Button natively (light grey) and ignores bg, but still
         # applies fg, which left white-on-grey labels unreadable. Use dark text there.
         if sys.platform == "darwin":
-            for btn in (self.btn_cal_relaxed, self.btn_cal_frowned, self.btn_reset):
+            for btn in (self.btn_cal_relaxed, self.btn_cal_frowned, self.btn_reset, self.btn_preview_sound):
                 btn.configure(fg="black", activeforeground="black")
 
         # Refresh all UI labels according to current localization
@@ -534,6 +720,29 @@ class FrownGuardApp:
         self.debounce_label.configure(text=fmt.format(debounce=val))
         self.save_config()
         
+    def sound_display_name(self, sound_id: str) -> str:
+        if sound_id == sounds.CHIME:
+            return self.translations[self.current_lang]["sound_chime"]
+        return sound_id
+
+    def on_sound_change(self, event: Any) -> None:
+        """Triggered when a different alert sound is picked; plays it as a preview."""
+        idx = self.sound_combobox.current()
+        if 0 <= idx < len(self.sound_ids):
+            self.alert_sound = self.sound_ids[idx]
+            self.save_config()
+            self.preview_alert_sound()
+
+    def on_volume_change(self, value: str) -> None:
+        """Triggered when the alert volume slider is dragged."""
+        self.alert_volume = float(value)
+        fmt = self.translations[self.current_lang]["volume_label_fmt"]
+        self.volume_label.configure(text=fmt.format(volume=self.alert_volume))
+        self.save_config()
+
+    def preview_alert_sound(self) -> None:
+        self.alert_player.play(self.alert_sound, self.alert_volume / 100.0)
+
     def on_lang_change(self, event: Any) -> None:
         """Triggered when the selected interface language is swapped in combobox."""
         self.current_lang = self.lang_combobox.get()
@@ -553,6 +762,9 @@ class FrownGuardApp:
         if not self.camera_active:
             self.smooth_box = None
         self.save_config()
+        if self.menubar is not None:
+            t = self.translations[self.current_lang]
+            self.menubar.set_monitoring(self.camera_active, t["menu_pause"], t["menu_resume"])
         
     def toggle_audio_alerts(self) -> None:
         """Toggles audio alerts active state."""
@@ -561,37 +773,9 @@ class FrownGuardApp:
             self.audio_alert_played = False
         self.save_config()
         
-    def play_zen_chime(self) -> None:
-        """Synthesizes and plays a gentle, calming 'zen chime' bell sound using sounddevice."""
-        try:
-            import sounddevice as sd
-            import numpy as np
-            
-            sample_rate = 44100
-            duration = 1.0  # seconds
-            t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
-            
-            # Synthesize E5 note chime (f0 = 659.25 Hz)
-            f0 = 659.25
-            fundamental = np.sin(2 * np.pi * f0 * t)
-            overtone1 = 0.5 * np.sin(2 * np.pi * (2 * f0) * t)
-            overtone2 = 0.25 * np.sin(2 * np.pi * (3 * f0) * t)
-            overtone3 = 0.15 * np.sin(2 * np.pi * (4.2 * f0) * t)
-            
-            combined = fundamental + overtone1 + overtone2 + overtone3
-            
-            # Apply smooth exponential decay envelope
-            envelope = np.exp(-4.5 * t)
-            bell_wave = combined * envelope
-            
-            # Normalize and set volume comfortably low (15%)
-            bell_wave = bell_wave / np.max(np.abs(bell_wave)) * 0.15
-            
-            # Play sound using PortAudio
-            sd.play(bell_wave, sample_rate)
-        except Exception as audio_err:
-            # Fall back silently if audio devices or PortAudio are unavailable
-            print(f"Silent fallback on zen chime audio playback: {audio_err}")
+    def play_alert_sound(self) -> None:
+        """Plays the selected alert sound (asynchronous; safe on the Tk thread)."""
+        self.alert_player.play(self.alert_sound, self.alert_volume / 100.0)
         
     def update_ui_text(self) -> None:
         """Re-renders all interface labels and layouts according to the chosen language."""
@@ -628,10 +812,16 @@ class FrownGuardApp:
         self.opacity_label.configure(text=t["opacity_label_fmt"].format(opacity=self.overlay_opacity * 100.0))
         self.fps_label.configure(text=t["fps_label_fmt"].format(fps=self.poll_fps))
         self.debounce_label.configure(text=t["debounce_label_fmt"].format(debounce=self.debounce_time))
+        self.sound_title_label.configure(text=t["sound_label"])
+        self.volume_label.configure(text=t["volume_label_fmt"].format(volume=self.alert_volume))
+        self.sound_combobox.configure(values=[self.sound_display_name(sid) for sid in self.sound_ids])
+        self.sound_combobox.current(self.sound_ids.index(self.alert_sound))
         
         # Update static tracker status label based on our logical state
         if hasattr(self, "status_text_label") and self.tracker_state:
             self.status_text_label.configure(text=t[f"status_{self.tracker_state}"])
+
+        self.refresh_menubar_labels()
         
     def scan_cameras(self) -> Dict[int, str]:
         """
@@ -762,10 +952,14 @@ class FrownGuardApp:
         t = self.translations[self.current_lang]
         if not self.cap.isOpened():
             self.tracker_state = "no_cam"
-            messagebox.showerror(t["msg_cam_err_title"], t["msg_cam_err_access"])
             self.status_text_label.configure(text=t["status_no_cam"], fg=self.colors["alert"])
-            return
-            
+            # The worker keeps retrying (camera busy, permission pending, not yet
+            # available at login). Only interrupt with a dialog if the window is open.
+            self.cap.release()
+            self.cap = None
+            if self.window_visible:
+                messagebox.showerror(t["msg_cam_err_title"], t["msg_cam_err_access"])
+
         # Spawns background worker processing thread
         self.video_thread = threading.Thread(target=self.capture_and_process, daemon=True)
         self.video_thread.start()
@@ -778,6 +972,7 @@ class FrownGuardApp:
         3. Annotates frames;
         4. Injects frames into the Tkinter queue.
         """
+        last_good_frame: Optional[float] = time.time()
         while self.is_running:
             if not self.camera_active:
                 # Free camera resources immediately
@@ -813,18 +1008,31 @@ class FrownGuardApp:
                 
                 if not self.cap.isOpened():
                     cap_is_valid = False
+                    # Drop the dead handle so the next attempt re-opens the device
+                    self.cap.release()
+                    self.cap = None
                 else:
                     cap_is_valid = True
                     # Safely read a frame while holding the mutex lock
                     ret, frame = self.cap.read()
                     
             if not cap_is_valid:
-                time.sleep(0.1)
+                time.sleep(2.0)
                 continue
-                
+
             if not ret:
+                # A camera that stops delivering frames (e.g. after sleep/wake) never
+                # recovers on its own; release it so the next loop re-opens it.
+                if last_good_frame is not None and time.time() - last_good_frame > CAMERA_STALL_SECONDS:
+                    with self.cap_lock:
+                        if self.cap is not None:
+                            self.cap.release()
+                            self.cap = None
+                    last_good_frame = time.time()
                 time.sleep(0.01)
                 continue
+            last_good_frame = time.time()
+            preview = self.preview_needed()
                 
             # Flip frame horizontally for mirror-like visual experience
             frame = cv2.flip(frame, 1)
@@ -837,7 +1045,7 @@ class FrownGuardApp:
             metrics, landmarks = self.detector.process_frame(frame_rgb)
             
             # Draw key guide landmarks on top of frame (if preview is enabled)
-            if self.show_video_preview and landmarks is not None:
+            if preview and landmarks is not None:
                 # Extract coordinate positions of key eyebrows and eyes guides
                 try:
                     p_r_brow = landmarks[self.detector.RIGHT_EYEBROW_INNER]
@@ -869,9 +1077,9 @@ class FrownGuardApp:
                     print(f"Error rendering facial markers: {draw_err}")
             
             # Apply face tracking zoom if enabled
-            if self.face_tracking_enabled and landmarks is not None:
+            if preview and self.face_tracking_enabled and landmarks is not None:
                 try:
-                    xs = [lm.x for lm in landmarks]
+                    xs =[lm.x for lm in landmarks]
                     ys = [lm.y for lm in landmarks]
                     x_min, x_max = min(xs), max(xs)
                     y_min, y_max = min(ys), max(ys)
@@ -933,7 +1141,7 @@ class FrownGuardApp:
             
             # Scale and convert frame for Tkinter canvas consumption
             pil_img = None
-            if self.show_video_preview:
+            if preview:
                 curr_h, curr_w, _ = frame_rgb.shape
                 max_w, max_h = 540, 400
                 scale = min(max_w / curr_w, max_h / curr_h)
@@ -955,7 +1163,8 @@ class FrownGuardApp:
                 pass
                 
             # Sleep dynamically based on selected polling FPS to save CPU load
-            sleep_time = 1.0 / max(2.0, self.poll_fps)
+            fps = min(self.poll_fps, HIDDEN_MAX_FPS) if self.background_throttled() else self.poll_fps
+            sleep_time = 1.0 / max(2.0, fps)
             time.sleep(sleep_time)
 
     def poll_queue(self) -> None:
@@ -964,7 +1173,14 @@ class FrownGuardApp:
         """
         if not self.is_running:
             return
-            
+
+        self.handle_menubar_commands()
+        if not self.is_running:  # "Quit" was chosen from the menu bar
+            return
+
+        # Covers hide-to-menu-bar (withdrawn) as well as minimise to Dock (iconic)
+        self.window_visible = self.root.state() == "normal"
+
         latest_item = None
         # Retrieve only the most recent processed frame to prevent video lag
         while not self.video_queue.empty():
@@ -977,7 +1193,7 @@ class FrownGuardApp:
             pil_img, metrics = latest_item
             
             # 1. Update webcam canvas display
-            if self.show_video_preview:
+            if self.show_video_preview and self.window_visible:
                 if pil_img is not None:
                     try:
                         img_tk = ImageTk.PhotoImage(image=pil_img)
@@ -1041,7 +1257,7 @@ class FrownGuardApp:
                             # Trigger gentle zen chime sound alert exactly once
                             if self.audio_alerts_enabled and not self.audio_alert_played:
                                 self.audio_alert_played = True
-                                threading.Thread(target=self.play_zen_chime, daemon=True).start()
+                                self.play_alert_sound()
                         else:
                             self.tracker_state = "warning"
                             self.status_text_label.configure(text=t["status_warning"], fg="#FFC107")  # Amber warning status
@@ -1090,8 +1306,10 @@ class FrownGuardApp:
                 self.frown_bar.place(relwidth=0.0)
                 self.overlay.hide_warning()
                 
-        # Request next queue check in 15 ms
-        self.root.after(15, self.poll_queue)
+        self.sync_menubar_state()
+
+        # Request next queue check (15 ms while the dashboard is visible)
+        self.root.after(HIDDEN_POLL_MS if self.background_throttled() else 15, self.poll_queue)
         
     def on_closing(self) -> None:
         """Releases all open resources safely on application close."""
